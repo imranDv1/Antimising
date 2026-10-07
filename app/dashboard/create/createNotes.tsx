@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { FilePlus2, Loader2, Search, X, BookOpen, ArrowLeft } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { FilePlus2, Loader2, Search, Star, Trash2, X, BookOpen, ArrowLeft } from "lucide-react";
+  Note,
+  NoteCard,
+  getTagColor,
+  sortFavoritesFirst,
+} from "@/components/note-card";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDialog } from "@/context/CreateDialogContext";
 import { useNoteNotificationStore } from "@/context/notesUpateStore";
 import { useFavNotificationStore } from "@/context/updateFavorite";
@@ -50,55 +51,16 @@ const formSchema = z.object({
     .max(3, "Max 3 tags allowed"),
 });
 
-type Note = {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  userId: string;
-  title: string;
-  description: string;
-  category: string[];
-};
+const UNSAVED_MESSAGE =
+  "You have unsaved changes. Are you sure you want to discard them?";
 
 type CreateNotesProps = {
   notes: Note[];
+  totalCount?: number;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 };
-
-// ─── Note card color palette (paper tones) ────────────────────────────────────
-const NOTE_COLORS = [
-  { bg: "#FEF9C3", border: "#FDE047", accent: "#CA8A04" }, // yellow
-  { bg: "#FEF3C7", border: "#FCD34D", accent: "#D97706" }, // amber
-  { bg: "#DCFCE7", border: "#86EFAC", accent: "#16A34A" }, // mint
-  { bg: "#E0F2FE", border: "#7DD3FC", accent: "#0284C7" }, // sky
-  { bg: "#F3E8FF", border: "#D8B4FE", accent: "#9333EA" }, // purple
-  { bg: "#FCE7F3", border: "#F9A8D4", accent: "#DB2777" }, // pink
-];
-
-function getNoteColor(id: string) {
-  const idx =
-    id
-      .split("")
-      .reduce((acc, c) => acc + c.charCodeAt(0), 0) % NOTE_COLORS.length;
-  return NOTE_COLORS[idx];
-}
-
-// ─── Tag color mapping ────────────────────────────────────────────────────────
-const TAG_COLORS = [
-  "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200",
-  "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200",
-  "bg-green-100 text-green-800 border-green-300 hover:bg-green-200",
-  "bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200",
-  "bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200",
-  "bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200",
-];
-
-function getTagColor(tag: string) {
-  const idx =
-    tag
-      .split("")
-      .reduce((acc, c) => acc + c.charCodeAt(0), 0) % TAG_COLORS.length;
-  return TAG_COLORS[idx];
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -114,12 +76,12 @@ const ConfirmDeleteDialog = ({
   loading?: boolean;
 }) => (
   <Dialog open={isOpen} onOpenChange={onClose}>
-    <DialogContent className="max-w-sm ">
-      <DialogHeader>
+        <DialogContent className="max-w-sm" onOpenAutoFocus={(e) => e.preventDefault()}>
+          <DialogHeader>
         <DialogTitle className="text-lg font-semibold ">
           Delete this note?
         </DialogTitle>
-        <DialogDescription className="text-sm text-gray-500 mt-1">
+        <DialogDescription className="mt-1 text-sm text-muted-foreground">
           This action cannot be undone. The note will be permanently removed.
         </DialogDescription>
       </DialogHeader>
@@ -135,7 +97,7 @@ const ConfirmDeleteDialog = ({
         <Button
           onClick={onConfirm}
           disabled={loading}
-          className="flex-1  bg-red-500 hover:bg-red-600 text-white"
+          className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
         >
           {loading ? (
             <span className="flex items-center gap-2">
@@ -151,162 +113,6 @@ const ConfirmDeleteDialog = ({
 );
 
 // ─── Sticky Note Card ─────────────────────────────────────────────────────────
-const NoteCard = ({
-  note,
-  favoriteStatus,
-  favoriteLoading,
-  deleteLoading,
-  onFavorite,
-  onDelete,
-  onEdit,
-  onTagClick,
-  clickableTags = false,
-}: {
-  note: Note;
-  favoriteStatus: Record<string, boolean>;
-  favoriteLoading: Record<string, boolean>;
-  deleteLoading: string | null;
-  onFavorite: (id: string) => void;
-  onDelete: (id: string) => void;
-  onEdit: (note: Note) => void;
-  onTagClick?: (tag: string) => void;
-  clickableTags?: boolean;
-}) => {
-  const color = getNoteColor(note.id);
-
-  return (
-    <div
-      className="group relative flex flex-col rounded-none  overflow-hidden"
-      style={{
-        backgroundColor: color.bg,
-        borderTop: `4px solid ${color.border}`,
-        border: `1px solid ${color.border}`,
-        borderTopWidth: "4px",
-      }}
-    >
-      {/* Fold corner decoration */}
-      <div
-        className="absolute top-0 right-0 w-6 h-6 opacity-30"
-        style={{
-          background: `linear-gradient(225deg, ${color.border} 50%, transparent 50%)`,
-        }}
-      />
-
-      {/* Card body */}
-      <div className="flex flex-col flex-1 p-4 gap-3">
-        {/* Header: title + star */}
-        <div className="flex items-start justify-between gap-2">
-          <h3
-            className="text-base font-semibold leading-snug text-gray-700  line-clamp-2 flex-1"
-           
-          >
-            {note.title}
-          </h3>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="shrink-0 mt-0.5 transition-transform hover:scale-110 focus:outline-none"
-                disabled={favoriteLoading[note.id]}
-                onClick={() => onFavorite(note.id)}
-                aria-label={
-                  favoriteStatus[note.id]
-                    ? "Remove from favorites"
-                    : "Add to favorites"
-                }
-              >
-                {favoriteLoading[note.id] ? (
-                  <Loader2 className="animate-spin size-4 text-gray-400" />
-                ) : (
-                  <Star
-                    className="size-4 transition-colors"
-                    fill={favoriteStatus[note.id] ? "#FBBF24" : "none"}
-                    color={favoriteStatus[note.id] ? "#F59E0B" : "#9CA3AF"}
-                  />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {favoriteStatus[note.id] ? "Remove from favorites" : "Add to favorites"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* Description */}
-        <p className="text-sm text-gray-600 leading-relaxed line-clamp-3 flex-1">
-          {note.description}
-        </p>
-
-        {/* Tags */}
-        {note.category.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {note.category.map((tag, index) => (
-              <span
-                key={`${note.id}-${index}`}
-                onClick={() => clickableTags && onTagClick?.(tag)}
-                className={`text-xs px-2 py-0.5  border font-medium transition-colors ${getTagColor(
-                  tag
-                )} ${clickableTags ? "cursor-pointer" : ""}`}
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Footer: date + actions */}
-      <div
-        className="flex items-center justify-between px-4 py-2.5 border-t"
-        style={{ borderColor: color.border, backgroundColor: `${color.border}33` }}
-      >
-        <span className="text-xs text-gray-500">
-          {new Date(note.updatedAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })}
-        </span>
-
-        <div className="flex items-center gap-1">
-          <Link
-            href={`notes/${note.id}`}
-            prefetch={true}
-            className="text-xs font-medium px-2.5 py-1  transition-colors hover:bg-white/70"
-            style={{ color: color.accent }}
-          >
-            Open
-          </Link>
-
-          <button
-            onClick={() => onEdit(note)}
-            className="text-xs font-medium px-2.5 py-1  transition-colors hover:bg-white/70 text-gray-500 hover:"
-          >
-            Edit
-          </button>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => onDelete(note.id)}
-                disabled={deleteLoading === note.id}
-                className="p-1.5  transition-colors hover:bg-red-50 text-gray-400 hover:text-red-500"
-                aria-label="Delete note"
-              >
-                {deleteLoading === note.id ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="size-3.5" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Delete note</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ─── Tag Input shared component ───────────────────────────────────────────────
 const TagInput = ({
   tags,
@@ -333,7 +139,9 @@ const TagInput = ({
       onChange={(e) => onInputChange(e.target.value)}
       onKeyDown={onKeyDown}
       disabled={tags.length >= maxTags}
-      className=" text-sm"
+      className="text-sm"
+      autoComplete="off"
+      spellCheck={false}
     />
     {tags.length > 0 && (
       <div className="flex flex-wrap gap-1.5">
@@ -356,38 +164,141 @@ const TagInput = ({
         ))}
       </div>
     )}
-    <p className="text-xs text-gray-400">
+    <p className="text-xs text-muted-foreground">
       {tags.length}/{maxTags} tags used
     </p>
   </div>
 );
 
+// ─── Shared dialog form fields ──────────────────────────────────────────────
+const NoteFormFields = ({
+  currentForm,
+  submitLabel,
+  loading,
+  tags,
+  inputValue,
+  maxTags,
+  onInputChange,
+  onKeyDown,
+  onRemove,
+}: {
+  currentForm: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
+  submitLabel: string;
+  loading: boolean;
+  tags: string[];
+  inputValue: string;
+  maxTags: number;
+  onInputChange: (v: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onRemove: (tag: string) => void;
+}) => (
+  <div className="space-y-4">
+    <FormField
+      control={currentForm.control}
+      name="title"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel className="text-sm font-medium ">Title</FormLabel>
+          <FormControl>
+            <Input
+              placeholder="What's this note about?"
+              {...field}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+    <FormField
+      control={currentForm.control}
+      name="description"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel className="text-sm font-medium ">Description</FormLabel>
+          <FormControl>
+            <Textarea
+              placeholder="Jot down your thoughts…"
+              {...field}
+              rows={4}
+              className="resize-none"
+              spellCheck={false}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+    <FormField
+      control={currentForm.control}
+      name="category"
+      render={() => (
+        <FormItem>
+          <FormLabel className="text-sm font-medium ">Tags</FormLabel>
+          <FormControl>
+            <TagInput
+              tags={tags}
+              inputValue={inputValue}
+              maxTags={maxTags}
+              onInputChange={onInputChange}
+              onKeyDown={onKeyDown}
+              onRemove={onRemove}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+    <Button
+      type="submit"
+      disabled={loading}
+      className="w-full  bg-primary cursor-pointer font-semibold"
+    >
+      {loading ? (
+        <span className="flex items-center gap-2">
+          <Loader2 className="size-4 animate-spin" /> Saving…
+        </span>
+      ) : (
+        submitLabel
+      )}
+    </Button>
+  </div>
+);
+
 // ─── Empty State ───────────────────────────────────────────────────────────────
 const EmptyState = ({ onOpen }: { onOpen: () => void }) => (
-  <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
+  <div className="col-span-full flex flex-col items-center justify-center gap-4 py-20">
     <div className="relative">
-      <div className="w-20 h-20  bg-yellow-100 border-2 border-yellow-200 flex items-center justify-center rotate-3 absolute -top-1 -left-1" />
-      <div className="w-20 h-20  bg-amber-50 border-2 border-amber-200 flex items-center justify-center relative z-10">
-        <BookOpen className="size-9 text-amber-400" />
+      <div className="absolute -left-1 -top-1 size-20 rotate-3 rounded-lg border border-border bg-muted/70" />
+      <div className="relative z-10 flex size-20 items-center justify-center rounded-lg border border-border bg-card shadow-sm">
+        <BookOpen className="size-9 text-primary" />
       </div>
     </div>
-    <div className="text-center mt-2">
-      <p className="text-lg font-semibold ">No notes yet</p>
-      <p className="text-sm text-gray-400 mt-1">
+    <div className="mt-2 text-center">
+      <p className="text-lg font-semibold text-foreground">No notes yet</p>
+      <p className="mt-1 text-sm text-muted-foreground">
         Create your first note to get started
       </p>
     </div>
     <Button
       onClick={onOpen}
-      className=" bg-amber-400 hover:bg-amber-500 text-amber-900 font-medium shadow-sm"
+      className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
     >
-      <FilePlus2 className="size-4 mr-1.5" /> Create your first note
+      <FilePlus2 className="mr-1.5 size-4" /> Create your first note
     </Button>
   </div>
 );
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-const CreateNotesPage = ({ notes }: CreateNotesProps) => {
+const CreateNotesPage = ({
+  notes,
+  totalCount = notes.length,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+}: CreateNotesProps) => {
+  const router = useRouter();
   const [tags, setTags] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -403,6 +314,7 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
   const [hasSearched, setHasSearched] = useState(false);
   const [categorysearchResults, setcategorySearchResults] = useState<Note[]>([]);
   const [hasCategorySearched, setHasCategorySearched] = useState(false);
+  const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
 
   const { isDialogOpen, openDialog, closeDialog } = useDialog();
   const maxTags = 3;
@@ -424,6 +336,67 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
     defaultValues: { title: "", description: "", category: [] },
   });
 
+  // ── Unsaved-changes guards ────────────────────────────────────────────────
+
+  const editBaselineRef = useRef<{
+    title: string;
+    description: string;
+    category: string[];
+  } | null>(null);
+
+  const isCreateDirty = useCallback(() => {
+    const v = form.getValues();
+    return Boolean(
+      v.title ||
+        v.description ||
+        v.category?.length ||
+        tags.length ||
+        inputValue.trim()
+    );
+  }, [form, tags, inputValue]);
+
+  const isEditDirty = useCallback(() => {
+    const b = editBaselineRef.current;
+    if (!b) return false;
+    const v = editForm.getValues();
+    return (
+      v.title !== b.title ||
+      v.description !== b.description ||
+      JSON.stringify(v.category) !== JSON.stringify(b.category) ||
+      JSON.stringify(tags) !== JSON.stringify(b.category) ||
+      Boolean(inputValue.trim())
+    );
+  }, [editForm, tags, inputValue]);
+
+  const requestCloseCreate = () => {
+    if (isCreateDirty() && !window.confirm(UNSAVED_MESSAGE)) return;
+    closeDialog();
+    form.reset();
+    setTags([]);
+    setInputValue("");
+  };
+
+  const requestCloseEdit = () => {
+    if (isEditDirty() && !window.confirm(UNSAVED_MESSAGE)) return;
+    setEditDialogOpen(false);
+    setTags([]);
+    setInputValue("");
+  };
+
+  useEffect(() => {
+    if (!isDialogOpen && !editDialogOpen) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const dirty = isDialogOpen ? isCreateDirty() : isEditDirty();
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDialogOpen, editDialogOpen, isCreateDirty, isEditDirty]);
+
   // ── Tag helpers ────────────────────────────────────────────────────────────
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -437,6 +410,13 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
         editForm.setValue("category", updated);
         setInputValue("");
       }
+    }
+
+    if (e.key === "Backspace" && !inputValue) {
+      const updated = tags.slice(0, -1);
+      setTags(updated);
+      form.setValue("category", updated);
+      editForm.setValue("category", updated);
     }
   };
 
@@ -512,6 +492,7 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
       setFavoriteStatus((p) => ({ ...p, [noteId]: !isFav }));
       toast.success(isFav ? "Removed from favorites" : "Added to favorites");
       triggerFavRefresh();
+      triggerRefresh();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -537,6 +518,11 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
     setNoteToEdit(note);
     editForm.reset({ title: note.title, description: note.description, category: note.category });
     setTags(note.category);
+    editBaselineRef.current = {
+      title: note.title,
+      description: note.description,
+      category: [...note.category],
+    };
     setEditDialogOpen(true);
   };
 
@@ -601,102 +587,46 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
     );
   };
 
+  const handleOpenNote = (noteId: string) => {
+    if (openingNoteId) return;
+    setOpeningNoteId(noteId);
+    router.push(`/dashboard/notes/${noteId}`);
+  };
+
   const handleBackToNotes = () => {
+    setSearch("");
     setHasSearched(false);
     setHasCategorySearched(false);
-    setSearchResults([]);
     setcategorySearchResults([]);
-    setSearch("");
   };
 
   // ── Decide which notes to render ───────────────────────────────────────────
-  const displayedNotes = hasSearched
+  const baseDisplayedNotes = hasSearched
     ? searchResults
     : hasCategorySearched
     ? categorysearchResults
     : notes;
 
+  const displayedNotes = sortFavoritesFirst(baseDisplayedNotes, favoriteStatus);
+
   const isFiltered = hasSearched || hasCategorySearched;
 
-  // ── Shared dialog form fields ──────────────────────────────────────────────
-  const NoteFormFields = ({
-    currentForm,
-    submitLabel,
-  }: {
-    currentForm: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
-    submitLabel: string;
-  }) => (
-    <div className="space-y-4">
-      <FormField
-        control={currentForm.control}
-        name="title"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-sm font-medium ">Title</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="What's this note about?"
-                {...field}
-                className=""
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={currentForm.control}
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-sm font-medium ">Description</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Jot down your thoughts…"
-                {...field}
-                rows={4}
-                className=" resize-none"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={currentForm.control}
-        name="category"
-        render={() => (
-          <FormItem>
-            <FormLabel className="text-sm font-medium ">Tags</FormLabel>
-            <FormControl>
-              <TagInput
-                tags={tags}
-                inputValue={inputValue}
-                maxTags={maxTags}
-                onInputChange={setInputValue}
-                onKeyDown={handleKeyDown}
-                onRemove={removeTag}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <Button
-        type="submit"
-        disabled={loading}
-        className="w-full  bg-primary cursor-pointer font-semibold"
-      >
-        {loading ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="size-4 animate-spin" /> Saving…
-          </span>
-        ) : (
-          submitLabel
-        )}
-      </Button>
-    </div>
-  );
+  // ── Infinite scroll ──────────────────────────────────────────────────────
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!onLoadMore || !hasMore || loadingMore || isFiltered) return;
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) onLoadMore();
+      },
+      { rootMargin: "400px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [onLoadMore, hasMore, loadingMore, isFiltered, notes.length]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -708,72 +638,103 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
           <h1 className="text-3xl font-bold " >
             My Notebooks
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {notes.length} note{notes.length !== 1 ? "s" : ""}
-          </p>
-        </div>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {totalCount} note{totalCount !== 1 ? "s" : ""}
+        </p>
+      </div>
 
-        {/* Search */}
-        <div className="relative flex-1 lg:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search notes…"
-            value={searchValue}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border focus:ring-0 focus:outline-0"
-          />
-          {searchValue && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
+      {/* Search */}
+      <div className="relative flex-1 sm:max-w-sm lg:max-w-xs">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search notes…"
+          value={searchValue}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {searchValue && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
 
-        <Button
-          onClick={openDialog}
-          className=" bg-primary font-semibold shrink-0 shadow-sm"
-        >
-          <FilePlus2 className="size-4 mr-1.5" /> New Note
-        </Button>
+      <Button
+        onClick={openDialog}
+        className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+      >
+        <FilePlus2 className="mr-1.5 size-4" /> New Note
+      </Button>
       </div>
 
       {/* ── Filter banner ────────────────────────────────────────────────── */}
       {isFiltered && (
-        <div className="flex items-center justify-between bg-orange-500/10 border border-primary  px-4 py-2.5">
-          <p className="text-sm t">
-            {hasSearched ? (
-              <>
-                <span className="font-semibold">{searchResults.length}</span> result
-                {searchResults.length !== 1 ? "s" : ""} for{" "}
-                <span className="font-semibold">&ldquo;{searchValue}&rdquo;</span>
-              </>
-            ) : (
-              <>
-                <span className="font-semibold">{categorysearchResults.length}</span> note
-                {categorysearchResults.length !== 1 ? "s" : ""} in this category
-              </>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm dark:bg-muted/30">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">
+              Showing{" "}
+              {hasSearched ? searchResults.length : categorysearchResults.length}{" "}
+              of {notes.length} notes
+            </span>
+            {hasCategorySearched && (
+              <Badge variant="secondary" className="gap-1 pr-1">
+                #{searchValue}
+                <button
+                  onClick={handleBackToNotes}
+                  className="ml-0.5 rounded-sm p-0.5 hover:bg-accent/20"
+                  aria-label="Clear tag filter"
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
             )}
-          </p>
-          <button
+            {hasSearched && (
+              <span className="text-muted-foreground">
+                for{" "}
+                <span className="font-semibold text-foreground">
+                  &ldquo;{searchValue}&rdquo;
+                </span>
+              </span>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleBackToNotes}
-            className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 font-medium transition-colors"
+            className="h-7 px-2 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="size-3.5" /> All notes
-          </button>
+            <ArrowLeft className="mr-1 size-3.5" />
+            All notes
+          </Button>
         </div>
       )}
 
       {/* ── Notes grid ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pb-10 gap-4">
         {displayedNotes.length === 0 && !isFiltered ? (
           <EmptyState onOpen={openDialog} />
         ) : displayedNotes.length === 0 && isFiltered ? (
-          <div className="col-span-full text-center py-16 text-gray-400 text-sm">
-            No notes match your search.
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm font-medium text-foreground">
+              No notes match your search
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try a different keyword or clear the filter
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBackToNotes}
+              className="mt-3"
+            >
+              Clear filters
+            </Button>
           </div>
         ) : (
           displayedNotes.map((note) => (
@@ -783,54 +744,75 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
               favoriteStatus={favoriteStatus}
               favoriteLoading={favoriteLoading}
               deleteLoading={deleteLoading}
+              openingNoteId={openingNoteId}
               onFavorite={handleFavoriteToggle}
               onDelete={handleDeleteClick}
               onEdit={handleEditClick}
               onTagClick={handleCategorySearch}
+              onOpen={handleOpenNote}
               clickableTags={!isFiltered}
             />
           ))
         )}
       </div>
 
+      {/* ── Infinite scroll sentinel / loader ──────────────────────────── */}
+      {!isFiltered && notes.length > 0 && (
+        <div
+          ref={loadMoreSentinelRef}
+          className="flex min-h-14 items-center justify-center gap-2 py-2"
+        >
+          {loadingMore ? (
+            <>
+              <Loader2 className="size-5 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">
+                Loading more notes…
+              </span>
+            </>
+          ) : !hasMore && totalCount > 10 ? (
+            <span className="text-sm text-muted-foreground/70">
+              You&apos;re all caught up
+            </span>
+          ) : null}
+        </div>
+      )}
+
       {/* ── Create Note Dialog ────────────────────────────────────────────── */}
       <Dialog
         open={isDialogOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            closeDialog();
-            form.reset();
-            setTags([]);
-            setInputValue("");
-          }
+          if (!open) requestCloseCreate();
         }}
       >
-        <DialogContent className="max-w-md ">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle
-              className="text-xl font-bold"
-             
-            >
+            <DialogTitle className="text-xl font-bold">
               New Note
             </DialogTitle>
-            <DialogDescription className="text-sm text-gray-400">
+            <DialogDescription className="text-sm text-muted-foreground">
               Capture your thoughts, ideas, or reminders.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="mt-2">
-              <NoteFormFields currentForm={form} submitLabel="Create Note" />
+              <NoteFormFields
+                currentForm={form}
+                submitLabel="Create Note"
+                loading={loading}
+                tags={tags}
+                inputValue={inputValue}
+                maxTags={maxTags}
+                onInputChange={setInputValue}
+                onKeyDown={handleKeyDown}
+                onRemove={removeTag}
+              />
             </form>
           </Form>
 
           <button
-            onClick={() => {
-              closeDialog();
-              form.reset();
-              setTags([]);
-            }}
-            className="w-full text-sm text-gray-400 hover:text-gray-600 mt-1 transition-colors"
+            onClick={requestCloseCreate}
+            className="mt-1 w-full text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Cancel
           </button>
@@ -841,35 +823,38 @@ const CreateNotesPage = ({ notes }: CreateNotesProps) => {
       <Dialog
         open={editDialogOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            setEditDialogOpen(false);
-            setTags([]);
-            setInputValue("");
-          }
+          if (!open) requestCloseEdit();
         }}
       >
-        <DialogContent className="max-w-md ">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle
-              className="text-xl font-bold "
-             
-            >
+            <DialogTitle className="text-xl font-bold">
               Edit Note
             </DialogTitle>
-            <DialogDescription className="text-sm text-gray-400">
+            <DialogDescription className="text-sm text-muted-foreground">
               Update your note details.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="mt-2">
-              <NoteFormFields currentForm={editForm} submitLabel="Save Changes" />
+              <NoteFormFields
+                currentForm={editForm}
+                submitLabel="Save Changes"
+                loading={loading}
+                tags={tags}
+                inputValue={inputValue}
+                maxTags={maxTags}
+                onInputChange={setInputValue}
+                onKeyDown={handleKeyDown}
+                onRemove={removeTag}
+              />
             </form>
           </Form>
 
           <button
-            onClick={() => setEditDialogOpen(false)}
-            className="w-full text-sm text-gray-400 hover:text-gray-600 mt-1 transition-colors"
+            onClick={requestCloseEdit}
+            className="mt-1 w-full text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Cancel
           </button>

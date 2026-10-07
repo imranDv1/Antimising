@@ -8,7 +8,7 @@ export const Logo = ({ className }: { className?: string }) => {
       alt="Logo"
       width={100}
       height={100}
-      className={cn("h-12 w-auto", className)}
+      className={cn("size-6", className)}
     />
   );
 };

@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { PrismaClient } from "@/lib/generated/prisma";
+import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { encryptNoteBody } from "@/lib/note-encryption";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 
@@ -83,9 +86,20 @@ function getPublicIdFromUrl(url: string) {
 }
 
 export async function POST(request: Request) {
-  const prisma = new PrismaClient();
-
   try {
+    // 🔐 المصادقة: نعتمد على الجلسة فقط، ولا نثق بأي معرف من العميل
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const userIdFromSession = session?.user?.id;
+
+    if (!userIdFromSession) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const noteId = formData.get("noteId") as string;
     const contentStr = formData.get("content") as string;
@@ -95,6 +109,28 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, message: "noteId and content are required" },
         { status: 400 }
+      );
+    }
+
+    // 🔐 الصلاحية: المالك أو "write" فقط يمكنهم الحفظ
+    const note = await prisma.note.findUnique({ where: { id: noteId } });
+    if (!note) {
+      return NextResponse.json(
+        { success: false, message: "Note not found" },
+        { status: 404 }
+      );
+    }
+    const canWrite =
+      note.userId === userIdFromSession ||
+      (await prisma.noteShare.findUnique({
+        where: { noteId_userId: { noteId, userId: userIdFromSession } },
+        select: { permission: true },
+      }))?.permission === "write";
+
+    if (!canWrite) {
+      return NextResponse.json(
+        { success: false, message: "You do not have permission to edit this note" },
+        { status: 403 }
       );
     }
 
@@ -185,21 +221,24 @@ export async function POST(request: Request) {
     // Save only images that remain referenced in content
     const finalImages = finalImageUrlsInContent;
 
-    // Save or update NoteBody
-    const noteBody = existingBody
-      ? await prisma.noteBody.update({
-          where: { noteId },
-          data: { content, images: finalImages, links },
-        })
-      : await prisma.noteBody.create({
-          data: { noteId, content, images: finalImages, links },
-        });
+    // 🔒 تشفير المحتوى قبل الحفظ — لا تُخزَّن أبدًا بيانات النص الصريح في قاعدة البيانات
+    const encryptedPayload = encryptNoteBody(content, links);
 
-    return NextResponse.json({ success: true, noteBody });
+    // Save or update NoteBody (only the encrypted payload, never plaintext)
+    if (existingBody) {
+      await prisma.noteBody.update({
+        where: { noteId },
+        data: { contentEnc: encryptedPayload, images: finalImages },
+      });
+    } else {
+      await prisma.noteBody.create({
+        data: { noteId, contentEnc: encryptedPayload, images: finalImages },
+      });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ success: false, error: err.message });
-  } finally {
-    await prisma.$disconnect();
   }
 }

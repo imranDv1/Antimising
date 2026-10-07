@@ -26,6 +26,7 @@ model User {
   accounts        Account[]
   Note            Note[]
   FavoriteNote    FavoriteNote[]
+  NoteShare       NoteShare[]
   subscription    Subscription?
   UserPlusInfo    UserPlusInfo?
   PasswordManeger PasswordManeger[] 
@@ -90,15 +91,15 @@ model Note {
   userId      String
   category    String[]
   favorites   FavoriteNote[] // relation to favorite notes
+  shares      NoteShare[] // ملاحظة مشتركة مع مستخدمين آخرين
 }
 
 model NoteBody {
-  id      String   @id @default(uuid())
-  content Json // Tiptap JSON
-  images  String[] // Cloudinary URLs
-  links   String[] // External URLs from note body
-  note    Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  noteId  String   @unique
+  id         String   @id @default(uuid())
+  contentEnc String? // Encrypted (AES-256-GCM) note payload: iv + authTag + ciphertext (base64). Contains content + links.
+  images     String[] // Cloudinary URLs (public CDN assets, stored separately for cleanup)
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  noteId     String   @unique
 }
 
 model FavoriteNote {
@@ -111,6 +112,21 @@ model FavoriteNote {
 
   @@unique([userId, noteId]) // لضمان عدم تكرار نفس الملاحظة كمفضلة لنفس المستخدم
   @@map("favorite_note")
+}
+
+model NoteShare {
+  id         String   @id @default(uuid())
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  noteId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  permission String   @default("read") // "read" | "write"
+  isRead     Boolean  @default(false) // has the recipient opened the note yet
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@unique([noteId, userId]) // منع تكرار نفس المشاركة لنفس المستخدم
+  @@map("note_share")
 }
 
 model Subscription {

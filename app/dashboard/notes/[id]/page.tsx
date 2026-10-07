@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor";
 import { authClient } from "@/lib/auth-client";
 import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
+import { useSharedStore } from "@/context/sharedStore";
 import { ArrowLeftToLine, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,6 +16,9 @@ type tParams = { id: string };
 const Page = (props: { params: Promise<tParams> }) => {
   const [params, setParams] = useState<tParams | null>(null);
   const [notebody, setNotes] = useState<any | null>(null);
+  const [permission, setPermission] = useState<"owner" | "read" | "write">(
+    "owner",
+  );
   const [isFetched, setIsFetched] = useState(false);
   const [MAX_CHARS, setMaxChars] = useState<number>(1000); // default limit
   const [limit, setMaxlimit] = useState<number>(3); // default limit
@@ -25,6 +29,26 @@ const Page = (props: { params: Promise<tParams> }) => {
   const refreshEditorSignal = useEditorNotificationStore(
     (state) => state.refreshEditorSignal,
   );
+
+  const triggerSharedRefresh = useSharedStore((s) => s.triggerSharedRefresh);
+
+  // ✅ عند فتح ملاحظة مشتركة (ليست ملكي) نعلّمها كمقروءة لتفريغ الـ badge
+  useEffect(() => {
+    if (!userId || !params || permission === "owner") return;
+    const markRead = async () => {
+      try {
+        await fetch("/api/shared-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ noteId: params.id }),
+        });
+        triggerSharedRefresh();
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    markRead();
+  }, [userId, params, permission, triggerSharedRefresh]);
 
   // Resolve params promise
   useEffect(() => {
@@ -83,6 +107,13 @@ const Page = (props: { params: Promise<tParams> }) => {
           setUIerror(data.message);
         } else {
           setNotes(data.notebody || null);
+          if (
+            data?.permission === "read" ||
+            data?.permission === "write" ||
+            data?.permission === "owner"
+          ) {
+            setPermission(data.permission);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -127,7 +158,7 @@ const Page = (props: { params: Promise<tParams> }) => {
         <SimpleEditor
           noteId={params.id}
           content={isThereContent ? notebody.content : undefined}
-          editable={false}
+          role={permission}
           MAX_CHARS={MAX_CHARS}
           limit={limit} // ✅ Now dynamic based on subscription
         />

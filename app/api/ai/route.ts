@@ -1,32 +1,6 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@/lib/generated/prisma";
-import { generateNoteBody } from "@/lib/openAi";
-
-const prisma = new PrismaClient();
-
-function normalizeAiBody(raw: string, title?: string): string {
-  if (!raw) return "";
-  let text = raw.trim();
-  // remove a leading title line if it exactly matches
-  if (title) {
-    const firstLine = text.split("\n")[0]?.trim();
-    if (firstLine && firstLine.toLowerCase() === title.trim().toLowerCase()) {
-      text = text.slice(firstLine.length).trimStart();
-    }
-  }
-  const codeBlockRegex = /```([\w-]*)\n([\s\S]*?)```/;
-  if (codeBlockRegex.test(text)) {
-    // keep as-is, just trim and normalize excessive blank lines around
-    return text.replace(/\n{3,}/g, "\n\n").trim();
-  }
-  // no code: collapse whitespace and tidy paragraphs
-  return text
-    .split("\n")
-    .map((line) => line.trimEnd())
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
+import { prisma } from "@/lib/db";
+import { streamNoteBody } from "@/lib/openAi";
 
 export async function POST(request: Request) {
   try {
@@ -63,10 +37,48 @@ export async function POST(request: Request) {
     }
 
     // توليد النص باستخدام AI
-    const body = await generateNoteBody(title);
-    // normalize and keep fenced code blocks intact
-    const styledBody = normalizeAiBody(body, title);
-    return NextResponse.json({ body: styledBody }, { status: 200 });
+    const encoder = new TextEncoder();
+    const generator = streamNoteBody(title);
+    let cancelled = false;
+
+    const stream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          const { value, done } = await generator.next();
+          if (cancelled) return;
+          if (done) {
+            controller.close();
+          } else {
+            controller.enqueue(encoder.encode(value));
+          }
+        } catch (error) {
+          console.error("AI Stream Error:", error);
+          if (!cancelled) {
+            try {
+              controller.enqueue(
+                encoder.encode(
+                  "\n\nSorry, something went wrong. Please try again."
+                )
+              );
+              controller.close();
+            } catch {
+              // stream already closed by the client
+            }
+          }
+        }
+      },
+      cancel() {
+        cancelled = true;
+        generator.return(undefined).catch(() => {});
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+      },
+    });
   } catch (error: unknown) {
     console.error("AI Route Error:", error);
 

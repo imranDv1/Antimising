@@ -86,9 +86,9 @@ export default function LoginPage() {
       <div className="max-w-92 m-auto h-fit w-full ">
         <div className="p-6">
           <div>
-            <Link href="/" aria-label="go home" className="flex items-center">
-              <LogoIcon />
-              <span>Rivorea</span>
+            <Link href="/" aria-label="go home" className="flex items-center gap-3">
+              <LogoIcon className="size-6" />
+              <span>Antimis</span>
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
               Sign In to Rivorea notes

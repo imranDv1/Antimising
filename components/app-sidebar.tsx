@@ -33,19 +33,22 @@ import {
   Files,
   FileText,
   LayoutDashboard,
+  Users,
 } from "lucide-react";
 import { Logo } from "./logo";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { useNotificationStore } from "@/context/profileUpdateNotification";
+import { useSharedStore } from "@/context/sharedStore";
+import { Separator } from "./ui/separator";
 
 const data = {
   navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
+    // {
+    //   title: "Dashboard",
+    //   url: "/dashboard",
+    //   icon: LayoutDashboard,
+    // },
     {
       title: "All Notes",
       url: "/dashboard/create",
@@ -56,7 +59,7 @@ const data = {
       title: "Password Manager",
       url: "/dashboard/passwords",
       icon: FileKey2,
-      badge: "new",
+      // badge: "new",
     },
 
   ],
@@ -138,12 +141,40 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const refreshSignal = useNotificationStore((state) => state.refreshSignal);
+  const refreshSharedSignal = useSharedStore((state) => state.refreshSharedSignal);
   const { data: session } = authClient.useSession();
+  const [unreadShared, setUnreadShared] = React.useState(0);
   const [userData, setUserData] = React.useState({
     name: session?.user.name || "",
     email: session?.user.email || "",
     avatar: session?.user.image || "/images/userefult.jpeg",
   });
+
+  // عدد الملاحظات المشتركة غير المقروءة (badge في القائمة الجانبية)
+  React.useEffect(() => {
+    if (!session?.user.id) return;
+    let active = true;
+
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(
+          `/api/shared-notes?userId=${session.user.id}&countOnly=true`,
+          { cache: "no-cache" }
+        );
+        const data = await res.json();
+        if (active) setUnreadShared(data.unreadCount ?? 0);
+      } catch (err) {
+        console.error("Failed to fetch unread shared notes", err);
+      }
+    };
+
+    fetchUnread();
+    const id = setInterval(fetchUnread, 30_000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [session?.user.id, refreshSharedSignal]);
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -169,6 +200,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     fetchUserData();
   }, [refreshSignal, session?.user.id]);
 
+  const sharedBadge =
+    unreadShared > 0 ? (unreadShared > 99 ? "99+" : String(unreadShared)) : undefined;
+
+  const navMain = [
+    ...data.navMain,
+    {
+      title: "Shared Notes",
+      url: "/dashboard/shared",
+      icon: Users,
+      badge: sharedBadge,
+    },
+  ];
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -180,14 +224,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link href="/" className="flex item-center justify-start">
                 <Logo />
-                <span className="text-base font-semibold">Rivorea</span>
+                <span className="text-2xl font-semibold">Antimis</span>
               </Link>
             </SidebarMenuButton>
+            <Separator className="mt-3"/>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
         <NavDocuments
           userId={session?.user.id as string}
           items={data.documents}

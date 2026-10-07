@@ -20,7 +20,7 @@ export function NavMain({
     url: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     icon?: React.ComponentType<any>;
-    badge?: string;
+    badge?: string | number;
   }[];
 }) {
   const pathname = usePathname(); // current URL
@@ -64,8 +64,8 @@ export function NavMain({
                     {item.icon && <item.icon />}
                     <span className="flex items-center gap-2">
                       {item.title}
-                      {item.badge && (
-                        <span className="text-[10px] leading-none uppercase rounded px-1.5 py-0.5 bg-primary/10 text-primary">
+                      {item.badge != null && item.badge !== "" && (
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-none text-primary-foreground">
                           {item.badge}
                         </span>
                       )}

@@ -83,6 +83,11 @@
   opacity: 1;
   font-size: 14px;
   padding-right: 8px; /* بديل للـ margin */
+  transition:
+    left var(--tt-transition-duration-default)
+      var(--tt-transition-easing-default),
+    top var(--tt-transition-duration-default)
+      var(--tt-transition-easing-default);
 }
 
 

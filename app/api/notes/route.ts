@@ -3,31 +3,104 @@ import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 50;
+
 export async function GET(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
   const userIdFromSession = session?.user?.id;
+
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId");
+
+  if (!userId) {
+    return NextResponse.json({ message: "userId is required" }, { status: 400 });
+  }
+
+  if (userId !== userIdFromSession) {
+    return NextResponse.json(
+      { message: "This note is not yours" },
+      { status: 401 }
+    );
+  }
+
+  const rawPage = Number(searchParams.get("page") ?? 1);
+  const rawLimit = Number(searchParams.get("limit") ?? DEFAULT_LIMIT);
+  const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
+  const limit = Number.isFinite(rawLimit)
+    ? Math.min(MAX_LIMIT, Math.max(1, Math.floor(rawLimit)))
+    : DEFAULT_LIMIT;
+  const skip = (page - 1) * limit;
+
   try {
-    const { searchParams } = new URL(request.url);
-    const  userId  = searchParams.get("userId");
+    // 🧾 ملاحظاتي (المملوكة) — المفضلة تظهر أولاً، كل صفحة تُجلب عند التمرير
+    // 🔗 الملاحظات المشتركة معي تُجلب كاملة في أول طلب (تعتمد على orderBy fav first)
+    const [ownedNotes, totalCount, sharedRows] = await Promise.all([
+      prisma.note.findMany({
+        where: { userId },
+        orderBy: [
+          { favorites: { _count: "desc" } },
+          { updatedAt: "desc" },
+        ],
+        skip,
+        take: limit,
+        include: { _count: { select: { shares: true } } },
+      }),
+      prisma.note.count({ where: { userId } }),
+      prisma.noteShare.findMany({
+        where: { userId },
+        include: {
+          note: {
+            include: {
+              user: { select: { name: true, email: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
-    if (!userId) {
-      return NextResponse.json({ message: "userId is required" }, { status: 400 });
-    }
+    const mine = ownedNotes.map((note) => ({
+      id: note.id,
+      title: note.title,
+      description: note.description,
+      category: note.category,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      userId: note.userId,
+      permission: "owner",
+      shareCount: note._count.shares,
+    }));
 
-    if(userId !== userIdFromSession) {
-      return NextResponse.json({ message: "This not is not belong to you" }, { status: 401 });
-    }
+    const shared = sharedRows.map((row) => ({
+      id: row.note.id,
+      title: row.note.title,
+      description: row.note.description,
+      category: row.note.category,
+      createdAt: row.note.createdAt,
+      updatedAt: row.note.updatedAt,
+      userId: row.note.userId,
+      permission: row.permission,
+      shareCount: 0,
+      ownerName: row.note.user.name,
+      ownerEmail: row.note.user.email,
+    }));
 
-    const notes = await prisma.note.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
+    return NextResponse.json({
+      mine,
+      shared,
+      totalCount,
+      page,
+      limit,
+      hasMore: skip + ownedNotes.length < totalCount,
     });
-
-    return NextResponse.json(notes);
   } catch (error) {
     console.error("Error fetching notes:", error);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

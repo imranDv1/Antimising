@@ -34,11 +34,16 @@
   caret-color: var(--tt-cursor-color);
 
   // Paragraph spacing
-  p:not(:first-child) {
+  p {
     font-size: 1rem;
-    line-height: 1.6;
+    line-height: 1.5;
     font-weight: normal;
-    margin-top: 20px;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  p:not(:first-child) {
+    margin-top: 0.5em;
   }
 
   // Selection styles

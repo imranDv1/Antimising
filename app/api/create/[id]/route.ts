@@ -1,4 +1,6 @@
-import { PrismaClient } from "@/lib/generated/prisma";
+import { prisma } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import { NextResponse, NextRequest } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 
@@ -25,9 +27,28 @@ export async function DELETE(
     return NextResponse.json({ message: "Note ID is required" }, { status: 400 });
   }
 
-  const prisma = new PrismaClient();
+  // 🔐 المصادقة والصلاحية: المالك فقط يمكنه حذف الملاحظة
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const userIdFromSession = session?.user?.id;
+
+  if (!userIdFromSession) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
   try {
+    const note = await prisma.note.findUnique({ where: { id } });
+    if (!note) {
+      return NextResponse.json({ message: "Note not found" }, { status: 404 });
+    }
+    if (note.userId !== userIdFromSession) {
+      return NextResponse.json(
+        { message: "You do not own this note" },
+        { status: 403 }
+      );
+    }
+
     const noteBody = await prisma.noteBody.findUnique({ where: { noteId: id } });
 
     if (noteBody?.images?.length) {
@@ -47,7 +68,5 @@ export async function DELETE(
     return NextResponse.json({ message: "Note and all images deleted successfully" });
   } catch (error) {
     return NextResponse.json({ message: "Failed to delete note: " + error }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -74,7 +74,8 @@ import { useCursorVisibility } from "@/hooks/use-cursor-visibility";
 
 // --- Lib ---
 import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
-import { CornerDownLeft, Loader2, Save } from "lucide-react";
+import { CornerDownLeft, Eye, Loader2, Save, Share2, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss";
@@ -82,6 +83,7 @@ import { toast } from "sonner";
 import { JsonValue } from "@/lib/generated/prisma/runtime/library";
 import Link from "next/link";
 import CustomButton from "@/components/CustomButton";
+import { ShareNoteDialog } from "@/components/share-note-dialog";
 import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
 import { convertMarkdownHeadingsToHtml } from "@/lib/converMarkdownHeading";
 
@@ -194,10 +196,75 @@ const MobileToolbarContent = ({
   </>
 );
 
+const hasInlineNewline = (node: JSONContent): boolean =>
+  node.type === "text" && !!node.text && /[\r\n]/.test(node.text);
+
+const splitParagraphWithNewlines = (paragraph: JSONContent): JSONContent[] => {
+  const blocks: JSONContent[][] = [];
+  let current: JSONContent[] = [];
+
+  const flush = () => {
+    if (current.length) {
+      blocks.push(current);
+      current = [];
+    }
+  };
+
+  for (const child of paragraph.content ?? []) {
+    const raw = child.type === "text" ? child.text : undefined;
+    if (!raw || !/[\r\n]/.test(raw)) {
+      current.push(child);
+      continue;
+    }
+
+    const segments = raw.replace(/\r\n?/g, "\n").split(/(\n[ \t]*\n+)/);
+    for (const segment of segments) {
+      if (!segment) continue;
+      if (/^\n[ \t\n]*$/.test(segment)) {
+        flush();
+        continue;
+      }
+      segment.split("\n").forEach((line, index) => {
+        if (index > 0) current.push({ type: "hardBreak" });
+        if (line) current.push({ ...child, text: line });
+      });
+    }
+  }
+  flush();
+
+  if (!blocks.length) return [paragraph];
+  return blocks.map((block) => ({ ...paragraph, content: block }));
+};
+
+const normalizeInlineNewlines = (node: JSONContent): JSONContent => {
+  if (!node.content?.length) return node;
+  const content = node.content.flatMap((child) =>
+    child.type === "paragraph" && child.content?.some(hasInlineNewline)
+      ? splitParagraphWithNewlines(child)
+      : [normalizeInlineNewlines(child)]
+  );
+  return { ...node, content };
+};
+
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const textPartToBlocksHtml = (text: string) =>
+  text
+    .replace(/\r\n?/g, "\n")
+    .split(/\n[ \t]*\n+/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map(
+      (block) =>
+        `<p>${block.split("\n").map(escapeHtml).join("<br />")}</p>`
+    )
+    .join("");
+
 type EditorProps = {
   noteId: string;
   content?: JsonValue;
-  editable?: boolean;
+  role?: "owner" | "read" | "write";
   MAX_CHARS: number;
   limit: number;
 };
@@ -205,14 +272,18 @@ type EditorProps = {
 export function SimpleEditor({
   noteId,
   content,
+  role = "owner",
   MAX_CHARS,
   limit,
 }: EditorProps) {
   const isMobile = useIsMobile();
   const { height } = useWindowSize();
+  const router = useRouter();
   const [mobileView, setMobileView] = React.useState<
     "main" | "highlighter" | "link"
   >("main");
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
   const toolbarRef = React.useRef<HTMLDivElement>(null);
   const triggerEditorRefresh = useEditorNotificationStore(
     (state) => state.triggerEditorRefresh
@@ -225,6 +296,12 @@ export function SimpleEditor({
   const [charCount, setCharCount] = React.useState(0);
   const [saveLoading, setSaveLoading] = React.useState(false); // Fix 4: renamed SaveLoading → saveLoading (camelCase convention)
 
+  const canEdit = role !== "read";
+  const isOwner = role === "owner";
+
+  const baselineRef = React.useRef<string | null>(null);
+  const uploadedFilesRef = React.useRef<File[]>(uploadedFiles);
+
   const editor = useEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
@@ -234,7 +311,7 @@ export function SimpleEditor({
       if (typeof content === "string")
         return convertMarkdownHeadingsToHtml(content);
       try {
-        return content as JSONContent;
+        return normalizeInlineNewlines(content as JSONContent);
       } catch {
         return "";
       }
@@ -314,6 +391,9 @@ export function SimpleEditor({
       const value = custom.detail?.text?.toString();
       if (!value) return;
 
+      // القراءة فقط: لا يمكن إدخال نص من مساعد الذكاء الاصطناعي
+      if (!canEdit) return;
+
       setEdit(true);
 
       const codeRegex = /```([\w-]*)\n([\s\S]*?)```/g;
@@ -353,7 +433,7 @@ export function SimpleEditor({
             content: [{ type: "text", text: part.content }],
           });
         } else if (part.content.trim()) {
-          chain.insertContent(part.content);
+          chain.insertContent(textPartToBlocksHtml(part.content));
         }
       }
       chain.run();
@@ -374,14 +454,72 @@ export function SimpleEditor({
     return () => {
       window.removeEventListener("rivorea-insert-note", handleInsert as EventListener);
     };
-  }, [editor]);
+  }, [editor, canEdit]);
 
-  // Sync editor editable state with `edit`
+  // Sync editor editable state with `edit` + read-only role
   React.useEffect(() => {
     if (editor) {
-      editor.setEditable(edit);
+      editor.setEditable(edit && canEdit);
     }
-  }, [edit, editor]);
+  }, [edit, editor, canEdit]);
+
+  React.useEffect(() => {
+    uploadedFilesRef.current = uploadedFiles;
+  }, [uploadedFiles]);
+
+  React.useEffect(() => {
+    if (!editor || baselineRef.current !== null) return;
+    baselineRef.current = JSON.stringify(editor.getJSON());
+  }, [editor]);
+
+  const isDirty = React.useCallback(() => {
+    if (!editor) return false;
+    if (uploadedFilesRef.current.length > 0) return true;
+    if (baselineRef.current === null) {
+      baselineRef.current = JSON.stringify(editor.getJSON());
+      return false;
+    }
+    return JSON.stringify(editor.getJSON()) !== baselineRef.current;
+  }, [editor]);
+
+  React.useEffect(() => {
+    if (!editor) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isDirty()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!isDirty()) return;
+
+      const target = e.target as HTMLElement | null;
+      if (!target || typeof target.closest !== "function") return;
+      if (editor.view.dom.contains(target)) return;
+
+      const anchor = target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.target === "_blank") return;
+
+      const href = anchor.getAttribute("href") ?? "";
+      if (!href.startsWith("/")) return;
+
+      if (window.confirm("You have unsaved changes. Leave without saving?"))
+        return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [editor, isDirty]);
 
   const rect = useCursorVisibility({
     editor,
@@ -437,6 +575,7 @@ export function SimpleEditor({
 
       if (data.success) {
         toast.success("Note saved!");
+        baselineRef.current = contentJSON;
         setUploadedFiles([]); // Fix 8: clear uploaded files after successful save to avoid re-uploading
         triggerEditorRefresh();
       } else {
@@ -449,22 +588,77 @@ export function SimpleEditor({
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm("Delete this note? This action cannot be undone.")) return;
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/create/${noteId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message || "Failed to delete note");
+      }
+      toast.success("Note deleted");
+      triggerEditorRefresh();
+      router.push("/dashboard/create");
+    } catch (err) {
+      toast.error((err as Error).message);
+      setDeleteLoading(false);
+    }
+  };
+
   // Fix 10: cleaned up redundant whitespace in className strings below
   return (
     <div className="w-full flex flex-col items-center mt-4 gap-4">
       <div className="w-full flex lg:flex-row flex-col justify-end gap-4 items-center">
         <div className="w-full lg:w-max flex justify-end">
           {content ? (
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-3">
               <Link
                 className={buttonVariants({ variant: "outline" })}
                 href="/dashboard/create"
               >
                 <CornerDownLeft />
               </Link>
-              <ShadcnButton variant="outline" onClick={() => setEdit(!edit)}>
-                {edit ? "Close Edit" : "Edit"}
-              </ShadcnButton>
+
+              {canEdit ? (
+                <ShadcnButton variant="outline" onClick={() => setEdit(!edit)}>
+                  {edit ? "Close Edit" : "Edit"}
+                </ShadcnButton>
+              ) : (
+                <span
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-muted/50 px-3 text-sm font-medium text-muted-foreground"
+                  title="You can view this note but cannot modify it."
+                >
+                  <Eye className="size-4" />
+                  View only
+                </span>
+              )}
+
+              {isOwner && (
+                <>
+                  <ShadcnButton
+                    variant="outline"
+                    onClick={() => setShareDialogOpen(true)}
+                    className="h-9"
+                  >
+                    <Share2 className="mr-1.5 size-4" />
+                    Share
+                  </ShadcnButton>
+                  <ShadcnButton
+                    variant="outline"
+                    onClick={handleDelete}
+                    disabled={deleteLoading}
+                    className="h-9 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    {deleteLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1.5 size-4" />
+                    )}
+                    Delete
+                  </ShadcnButton>
+                </>
+              )}
             </div>
           ) : (
             <Link
@@ -476,7 +670,7 @@ export function SimpleEditor({
           )}
         </div>
 
-        {edit && (
+        {edit && canEdit && (
           <div className="w-full flex items-center justify-end gap-4">
             <span
               className={`text-sm ${
@@ -487,7 +681,7 @@ export function SimpleEditor({
             </span>
 
             {/* AI assistant button */}
-            <CustomButton />
+            {/* <CustomButton /> */}
 
             <ShadcnButton disabled={saveLoading} size="sm" onClick={handleSave}>
               {saveLoading ? (
@@ -507,7 +701,7 @@ export function SimpleEditor({
       </div>
 
       <EditorContext.Provider value={{ editor }}>
-        {edit && (
+        {edit && canEdit && (
           <Toolbar
             ref={toolbarRef}
             style={
@@ -530,6 +724,14 @@ export function SimpleEditor({
             )}
           </Toolbar>
         )}
+
+        {/* ── Share Note Dialog (owner only) ─────────────────────────── */}
+        <ShareNoteDialog
+          noteId={noteId}
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          onChanged={() => triggerEditorRefresh()}
+        />
 
         <EditorContent
           editor={editor}

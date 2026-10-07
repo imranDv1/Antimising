@@ -23,6 +23,17 @@ const AI_AVATAR = "/icons/note ai.png";
 const PLACEHOLDER_AVATAR =
   "https://api.dicebear.com/7.x/lorelei/svg?seed=user&backgroundColor=transparent";
 
+const normalizeAiResponse = (raw: string, query: string): string => {
+  let text = raw.replace(/\r\n?/g, "\n").trim();
+  const firstLine = text.split("\n", 1)[0].trim();
+  if (firstLine && firstLine.toLowerCase() === query.trim().toLowerCase()) {
+    const newlineIndex = text.indexOf("\n");
+    text = newlineIndex === -1 ? "" : text.slice(newlineIndex + 1).trimStart();
+  }
+  if (!text.includes("```")) text = text.replace(/\n{3,}/g, "\n\n");
+  return text.trim();
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Message = {
@@ -135,7 +146,7 @@ function MessageBubble({
           ${
             isAi
               ? "bg-white dark:bg-neutral-900 text-gray-800 dark:text-neutral-100 border border-gray-200 dark:border-neutral-800 shadow-sm rounded-tl-sm"
-              : "bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-md rounded-tr-sm"
+              : "bg-gradient-to-br from-primary to-primary/80 text-white shadow-md rounded-tr-sm"
           }`}
         >
           {renderMessageContent(msg.text, isAi)}
@@ -153,7 +164,7 @@ function MessageBubble({
               </button>
               <button
                 onClick={() => onWrite?.(msg.text)}
-                className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 dark:text-violet-400 dark:hover:text-violet-200 bg-white dark:bg-neutral-800 border border-violet-200 dark:border-violet-800 px-2 py-0.5  shadow-sm transition-colors"
+                className="flex items-center gap-1 text-[11px] text-primary hover:text-primary dark:text-primary dark:hover:text-violet-200 bg-white dark:bg-neutral-800 border border-violet-200 dark:border-primary px-2 py-0.5  shadow-sm transition-colors"
                 title="Insert into editor"
               >
                 Write
@@ -220,6 +231,7 @@ const CustomButton = () => {
   const [open, setOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -248,42 +260,78 @@ const CustomButton = () => {
     setInputValue("");
     setLoading(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    let acc = "";
+    let pushed = false;
+
+    const upsertAiText = (nextText: string) => {
+      acc = nextText;
+      if (!pushed) {
+        pushed = true;
+        setMessages((prev) => [
+          ...prev,
+          { from: "ai", name: "NoteBuddy", avatar: AI_AVATAR, text: acc },
+        ]);
+      } else {
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], text: acc };
+          return next;
+        });
+      }
+    };
+
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user?.id, title: text }),
+        signal: controller.signal,
       });
 
-      const data = await res.json();
+      if (!res.ok || !res.body) {
+        const data = await res
+          .json()
+          .catch(() => ({ message: "Failed to get AI response." }));
+        throw new Error(data.message || "Failed to get AI response.");
+      }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          from: "ai",
-          name: "NoteBuddy",
-          avatar: AI_AVATAR,
-          text:
-            res.ok && data.body
-              ? data.body.trim()
-              : data.message ||
-                "Sorry, something went wrong. Please try again.",
-        },
-      ]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
 
-      if (!res.ok) toast.error(data.message || "Failed to get AI response.");
-    } catch {
-      toast.error("An unexpected error occurred.");
-      setMessages((prev) => [
-        ...prev,
-        {
-          from: "ai",
-          name: "NoteBuddy",
-          avatar: AI_AVATAR,
-          text: "Something went wrong. Please try again.",
-        },
-      ]);
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) upsertAiText(acc + chunk);
+      }
+
+      const tail = decoder.decode();
+      if (tail) upsertAiText(acc + tail);
+
+      if (!pushed)
+        throw new Error("Sorry, something went wrong. Please try again.");
+
+      upsertAiText(normalizeAiResponse(acc, text));
+    } catch (err) {
+      const aborted =
+        controller.signal.aborted ||
+        (err instanceof Error && err.name === "AbortError");
+
+      if (aborted) {
+        if (!pushed) upsertAiText("Response stopped.");
+      } else {
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "An unexpected error occurred.";
+        toast.error(message);
+        if (!pushed) upsertAiText(message);
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setLoading(false);
     }
   };
@@ -320,19 +368,12 @@ const CustomButton = () => {
       {/* ── Trigger button ───────────────────────────────────────────────── */}
       <DialogTrigger asChild>
         <button
-          className="group relative rounded-xl overflow-hidden p-[2px] shadow-md transition-all duration-200 hover:scale-105 hover:shadow-lg bg-gradient-to-r from-violet-500 via-pink-400 to-orange-400 focus:outline-none"
+          className="group inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground shadow-xs transition-all duration-150 hover:border-primary/40 hover:bg-primary/10 hover:text-primary active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           tabIndex={0}
           aria-label="Open AI assistant"
         >
-          <span className="flex items-center justify-center gap-1.5 bg-white dark:bg-neutral-950 rounded-[9px] py-2 px-4">
-            <Sparkles
-              size={15}
-              className="text-violet-500 group-hover:text-pink-500 transition-colors"
-            />
-            <span className="text-sm font-semibold bg-gradient-to-r from-violet-600 to-pink-500 bg-clip-text text-transparent">
-              AI
-            </span>
-          </span>
+          <Sparkles size={15} className="text-primary" />
+          AI
         </button>
       </DialogTrigger>
 
@@ -347,7 +388,7 @@ const CustomButton = () => {
                 alt="NoteBuddy"
                 width={36}
                 height={36}
-                className=" border-2 border-violet-200 dark:border-violet-900"
+                className=" border-2 border-primary dark:border-primary"
               />
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400  border-2 border-white dark:border-neutral-900" />
             </div>
@@ -374,7 +415,9 @@ const CustomButton = () => {
                 onWrite={writeToEditor}
               />
             ))}
-            {loading && <TypingIndicator key="typing" />}
+            {loading && messages[messages.length - 1]?.from !== "ai" && (
+              <TypingIndicator key="typing" />
+            )}
           </AnimatePresence>
           <div ref={messagesEndRef} />
         </div>
@@ -394,7 +437,10 @@ const CustomButton = () => {
             />
             {loading ? (
               <button
-                onClick={() => setLoading(false)}
+                onClick={() => {
+                  abortRef.current?.abort();
+                  setLoading(false);
+                }}
                 className="shrink-0 p-1.5  text-gray-400 hover:text-red-500 transition-colors"
                 title="Stop"
               >
@@ -404,7 +450,7 @@ const CustomButton = () => {
               <button
                 onClick={sendMessage}
                 disabled={!inputValue.trim()}
-                className="shrink-0 p-1.5  bg-gradient-to-br from-violet-500 to-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-all active:scale-95"
+                className="shrink-0 p-1.5  bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
                 title="Send"
               >
                 <Send size={15} />
