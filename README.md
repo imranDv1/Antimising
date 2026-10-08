@@ -175,7 +175,7 @@ Contributions are always welcome!
 
 ## 📸 Screenshot
 
-![AntiMising Screenshot](https://res.cloudinary.com/dfyafxdwe/image/upload/v1762939179/Rivorea_Post_Copy_rujrkg.jpg)
+![AntiMising Screenshot](https://notes.eduvorea.com/_next/image?url=%2FImages%2FScreenshot%202026-10-09%20005536.png&w=3840&q=75)
 
 ---
 
