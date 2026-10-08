@@ -1,6 +1,6 @@
 # AntiMising
 
-![AntiMising Preview](https://res.cloudinary.com/dfyafxdwe/image/upload/v1762937469/Image_1_evlya2.jpg)
+![AntiMising Preview](https://notes.eduvorea.com/_next/image?url=%2FImages%2FScreenshot%202026-10-09%20005536.png&w=3840&q=75)
 
 > Notes, canvas, and passwords — all in one secure workspace, powered by AI. Built with Next.js + TypeScript.
 
