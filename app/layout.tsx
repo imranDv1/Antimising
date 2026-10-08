@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rivorea Notes",
-  description: "Create Smarter Notes. Code Better.",
+  title: "AntiMising",
+  description: "Notes, canvas, and passwords — all in one secure workspace.",
 };
 
 export default function RootLayout({

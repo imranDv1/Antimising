@@ -33,8 +33,8 @@ export default async function CreateNewPass(formData: FormData) {
       }),
     });
     if (!res.ok) {
-      console.log(`try to create new Pass: ${await res.json()}`);
-      return { success: false, message: "error create new Pass" };
+      const body = await res.json().catch(() => null);
+      return { success: false, message: body?.message || "error create new Pass" };
     }
     return { success: true, message: "Pass create successfuly" };
   } catch (error) {

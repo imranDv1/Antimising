@@ -15,6 +15,7 @@ import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
+import { SidebarPlan } from "@/components/sidebar-plan";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +32,7 @@ import {
   Boxes,
   FolderLock,
   NotepadTextDashed,
+  Shapes,
   Users
 } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +50,14 @@ const data = {
       title: "All Notes",
       url: "/dashboard/create",
       icon: NotepadTextDashed,
+    },
+
+    {
+      title: "Canvas",
+      url: "/dashboard/canvas",
+      icon: Shapes,
+      // badge: "new",
+
     },
 
     {
@@ -204,7 +214,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Shared Notes",
       url: "/dashboard/shared",
       icon: Boxes,
-      badge: "new",
+      // badge: "new",
     },
   ];
 
@@ -217,9 +227,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link href="/" className="flex item-center justify-start">
-                <Logo />
-                <span className="text-2xl font-semibold font-sans ">Anti<span className="text-primary">Mising</span></span>
+              <Link href="/" className="flex item-start justify-start">
+                <Logo className="h-5 w-5" />
+                <span className="text-xl font-semibold font-sans ">Anti<span className="text-primary">Mising</span></span>
               </Link>
             </SidebarMenuButton>
             <Separator className="mt-3"/>
@@ -233,6 +243,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           items={data.documents}
         />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <SidebarPlan />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

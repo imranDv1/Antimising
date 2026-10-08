@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { streamNoteBody } from "@/lib/openAi";
 import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
+import { getPlanLimits, rateLimit } from "@/lib/limits";
 
 export async function POST(request: Request) {
   try {
@@ -22,17 +22,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // التحقق إذا كان لدى المستخدم أي اشتراك
-    let hasSubs = false;
-    const subs = await prisma.subscription.findMany({
-      where: { userId: sessionUserId },
-    });
-    hasSubs = subs.length > 0;
+    // التحقق إذا كان لدى المستخدم أي اشتراك — يتحقق دائمًا من الجلسة
+    const limits = await getPlanLimits(sessionUserId);
 
-    if (!hasSubs) {
+    if (!limits.isPro) {
       return NextResponse.json(
         { message: "You need an active subscription to use this feature" },
         { status: 403 }
+      );
+    }
+
+    // Abuse/rate protection applies to all users, including Pro.
+    if (!rateLimit(`ai:${sessionUserId}`, 10, 60_000)) {
+      return NextResponse.json(
+        { message: "Too many AI requests. Please wait a minute and try again." },
+        { status: 429 }
       );
     }
 

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { encryptNoteBody } from "@/lib/note-encryption";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { getPlanLimits } from "@/lib/limits";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -85,6 +86,22 @@ function getPublicIdFromUrl(url: string) {
   return null;
 }
 
+// Helper: count text characters across Tiptap JSON
+function countTextChars(content: any): number {
+  let total = 0;
+  const traverse = (node: any) => {
+    if (!node) return;
+    if (node.type === "text" && typeof node.text === "string") {
+      total += node.text.length;
+    }
+    if (Array.isArray(node.content)) {
+      node.content.forEach(traverse);
+    }
+  };
+  traverse(content);
+  return total;
+}
+
 export async function POST(request: Request) {
   try {
     // 🔐 المصادقة: نعتمد على الجلسة فقط، ولا نثق بأي معرف من العميل
@@ -160,6 +177,43 @@ export async function POST(request: Request) {
 
     if (isEmptyContent) {
       content = null;
+    }
+
+    // Plan limits are enforced server-side from the submitted content. The
+    // strictest applicable limit (note owner vs the authenticated editor) is
+    // used, so a shared editor can neither exceed the owner's quota nor have
+    // their own plan ignored.
+    const ownerLimits = await getPlanLimits(note.userId);
+    let maxChars = ownerLimits.maxChars;
+    let maxImages = ownerLimits.imagesPerNote;
+    if (userIdFromSession !== note.userId) {
+      const editorLimits = await getPlanLimits(userIdFromSession);
+      maxChars = Math.min(maxChars, editorLimits.maxChars);
+      maxImages = Math.min(maxImages, editorLimits.imagesPerNote);
+    }
+
+    if (content) {
+      const imageCount = extractImageSrcsFromContent(content).length;
+      if (imageCount > maxImages) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Your plan allows at most ${maxImages} images per note.`,
+          },
+          { status: 403 }
+        );
+      }
+
+      const charCount = countTextChars(content);
+      if (charCount > maxChars) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Your plan allows at most ${maxChars} characters per note.`,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // Extract external links

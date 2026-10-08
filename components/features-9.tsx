@@ -18,14 +18,14 @@ export default function FeaturesSection2() {
         <div>
           <div className="p-6 sm:p-12">
             <span className="text-muted-foreground flex items-center gap-2">
-              <MapIcon className="size-4" />
+              <MapIcon className="text-primary size-4" />
               Stay organized, always
             </span>
 
             <p className="mt-8 text-2xl font-semibold">
               All your notes, ideas, and lists in one secure, instantly
               accessible place. Effortlessly search, tag, and organize your
-              thoughts with Rivorea Notes.
+              thoughts with AntiMising.
             </p>
           </div>
 
@@ -47,13 +47,13 @@ export default function FeaturesSection2() {
         <div className="overflow-hidden border-t bg-zinc-50 p-6 sm:p-12 md:border-0 md:border-l dark:bg-transparent">
           <div className="relative z-10">
             <span className="text-muted-foreground flex items-center gap-2">
-              <MessageCircle className="size-4" />
+              <MessageCircle className="text-primary size-4" />
               Direct help & support
             </span>
 
             <p className="my-8 text-2xl font-semibold">
               Got a question or need help? Reach us anytime — our team is always
-              here to support your workflow with Rivorea.
+              here to support your workflow with AntiMising.
             </p>
           </div>
           <div aria-hidden className="flex flex-col gap-8">
@@ -67,7 +67,7 @@ export default function FeaturesSection2() {
                 </span>
               </div>
               <div className="rounded-(--radius) bg-background mt-1.5 w-3/5 border p-3 text-xs">
-                Hi Rivorea, I’d like to know how to backup my notes?
+                Hi AntiMising, I’d like to know how to backup my notes?
               </div>
             </div>
 
@@ -86,21 +86,21 @@ export default function FeaturesSection2() {
         {/* Uptime / Sync Guarantee */}
         <div className="col-span-full border-y p-12">
           <p className="text-center text-4xl font-semibold lg:text-7xl">
-            99.99% Sync Reliability
+            Notes, Canvas &amp; Passwords in One Place
           </p>
         </div>
         {/* Activity/Usage Feed Feature */}
         <div className="relative col-span-full">
           <div className="absolute z-10 max-w-lg px-6 pr-12 pt-6 md:px-12 md:pt-12">
             <span className="text-muted-foreground flex items-center gap-2">
-              <Activity className="size-4" />
-              Note activity
+              <Activity className="text-primary size-4" />
+              AI writing assistant
             </span>
 
             <p className="my-8 text-2xl font-semibold">
-              Track your note-taking history — see edits,{" "}
-              <br className="flex md:hidden" /> backups,and exports{" "}
-              <br className="flex md:hidden" /> in real time.
+              Draft, summarize, and polish any note with{" "}
+              <br className="flex md:hidden" /> the built-in AI assistant{" "}
+              <br className="flex md:hidden" /> right where you write.
             </p>
           </div>
           <MonitoringChart />
@@ -140,11 +140,11 @@ const Map = () => {
 const chartConfig = {
   desktop: {
     label: "Desktop",
-    color: "#f59977",
+    color: "#14DD90",
   },
   mobile: {
     label: "Mobile",
-    color: "#faaf60",
+    color: "#9CF0CE",
   },
 } satisfies ChartConfig;
 

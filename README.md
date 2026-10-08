@@ -1,100 +1,140 @@
-# Rivorea-notes
+# AntiMising
 
-![Rivorea Notes Preview](https://res.cloudinary.com/dfyafxdwe/image/upload/v1762937469/Image_1_evlya2.jpg)
+![AntiMising Preview](https://res.cloudinary.com/dfyafxdwe/image/upload/v1762937469/Image_1_evlya2.jpg)
 
-> Note taker app powered by AI — clean, fast, and built with Next.js + TypeScript.
+> Notes, canvas, and passwords — all in one secure workspace, powered by AI. Built with Next.js + TypeScript.
 
 [Live demo](https://rivorea-notes.vercel.app) • **TypeScript** • **Next.js** • **Prisma**
 
 ---
 
-## 🎯 What is Rivorea-notes?
+## 🎯 What is AntiMising?
 
-Rivorea-notes is a modern AI-powered note-taking application built with **Next.js** and **TypeScript**. It provides a clean and minimal user experience while leveraging modern web technologies for performance, scalability, and developer productivity.
+AntiMising is a modern, all-in-one workspace built with **Next.js (App Router)** and **TypeScript**. It combines three products in one clean, minimal interface:
+
+* 📝 **Notes** — rich text editor (TipTap) with formatting, images, search, favorites and sharing
+* 🎨 **Canvas** — infinite whiteboards (tldraw + Excalidraw) for visual thinking
+* 🔑 **Passwords** — AES-encrypted password manager (stored client-side encrypted)
+
+A built-in AI assistant (NoteBuddy, powered by Google Gemini) helps you write, summarize and draft inside your notes.
 
 ---
 
 ## ✨ Key Features
 
-* ✍️ Create, edit, and delete notes with ease
-* 🤖 AI-powered enhancements for summarizing and tagging notes
-* 🔐 Secure authentication system (Google Auth & BetterAuth)
+* ✍️ Create, edit, and delete notes with rich text formatting (TipTap)
+* 🎨 Infinite canvas whiteboards (tldraw) for visual thinking
+* 🔑 Encrypted password manager (AES, client-side encryption)
+* 🤖 NoteBuddy — AI-powered writing assistant for summarizing and drafting
+* 🔐 Secure authentication (email/password + Google OAuth via Better Auth)
 * ☁️ Cloud image uploads via Cloudinary
-* 💳 Stripe integration for premium features or subscriptions
+* 💳 Pro plan payments via Sifalo Pay (one-time $9 checkout, 30 days)
+* 🔗 Share notes and save favorites with smart organization
+* 🧩 Drag-and-drop notes, search (title, content, category), dark mode
 * 📱 Fully responsive design
-* 🚀 Optimized for Vercel deployment
+
+### Plan limits
+
+| | Free | Pro |
+| --- | --- | --- |
+| Characters / note | 3,000 | 10,000 |
+| Notes | 10 | Unlimited |
+| Images / note | 3 | Unlimited |
+| Passwords | 10 | Unlimited |
+| Canvases | 3 | Unlimited |
 
 ---
 
 ## 🧰 Tech Stack
 
-* **Next.js (App Router)** + **TypeScript**
-* **Prisma** ORM
-* **BetterAuth** for authentication
+* **Next.js 15 (App Router)** + **React 19** + **TypeScript**
+* **Tailwind CSS v4** + **shadcn/ui** (Radix UI, lucide-react)
+* **TipTap** rich text editor
+* **tldraw** + **Excalidraw** canvas
+* **Prisma** ORM + **PostgreSQL** (Neon)
+* **Better Auth** for authentication (email + Google OAuth)
+* **Google Gemini** (AI assistant), **OpenAI** SDK
 * **Cloudinary** for image storage
-* **Stripe** for payments
-* **PostgreSQL** database
+* **Resend** for transactional email
+* **Sifalo Pay** for payments
+* **Arcjet** for bot protection
+* **Zod** validation, **Zustand** state, **Framer Motion** animations
 * **Deployed on Vercel**
 
 ---
 
 ## 🚀 Quick Start (Local Development)
 
-### 1. Clone the repository
+Requires **Bun** installed. Clone the repository:
 
 ```bash
 git clone https://github.com/imranDv1/Rivorea-notes.git
 cd Rivorea-notes
 ```
 
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
-npm install
-# or
-pnpm install
-# or
-yarn install
+bun install
 ```
 
-### 3. Set up your `.env` file
+### 2. Set up your `.env` file
 
-Create a `.env` file in the project root and add the following variables:
+Create a `.env` file in the project root. See `.env.example` if present, or copy the structure below and fill in your actual credentials:
 
 ```env
-# Database
-DATABASE_URL="postgresql://user:password@host:port/dbname"
+# App
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# Authentication
-BETTER_AUTH_URL="your-auth-url"
-BETTER_AUTH_SECRET="your-auth-secret"
+# Database (Neon/Postgres)
+DATABASE_URL="postgresql://user:password@host:port/dbname?sslmode=require&channel_binding=require"
+
+# Authentication (Better Auth)
+BETTER_AUTH_URL="http://localhost:3000"
+BETTER_AUTH_SECRET="your-better-auth-secret"
+GOOGLE_CLIENT_ID_WEB="your-google-client-id-web"
+GOOGLE_CLIENT_ID_ANDROID="your-google-client-id-android"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# AI
+GEMINI_API_KEY="your-gemini-api-key"
 
 # Cloudinary
 CLOUDINARY_CLOUD_NAME="your-cloud-name"
 CLOUDINARY_API_KEY="your-api-key"
 CLOUDINARY_API_SECRET="your-api-secret"
 
-# Stripe
-STRIPE_SECRET_KEY="your-stripe-secret-key"
+# Encryption keys (generate your own)
+ENCRYPTION_KEY="hex-64-chars"
+NOTE_ENCRYPTION_KEY="base64-key"
+PASSWORD_ENCRYPTION_KEY="hex-64-chars"
 
-# App URL
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
+# Email (Resend)
+RESEND_API_KEY="your-resend-key"
+RESEND_FROM="AntiMising <no-reply@yourdomain.com>"
+
+# Payments (Sifalo Pay)
+SIFALO_USERNAME="your-sifalo-username"
+SIFALO_API_KEY="your-sifalo-api-key"
+SIFALO_PRICE_USD=9
+
+# Optional: bot protection
+ARCJET_KEY="your-arcjet-key"
 ```
 
-> ⚠️ Make sure to fill in the actual credentials for your environment.
+> ⚠️ Make sure to fill in the actual credentials for your environment. Never commit your real `.env`.
 
-### 4. Set up Prisma
+### 3. Set up Prisma
 
 ```bash
-npx prisma generate
-npx prisma db push
+bunx prisma generate
+bunx prisma db push
 ```
 
-### 5. Run the development server
+### 4. Run the development server
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to view the app.
@@ -104,20 +144,19 @@ Visit [http://localhost:3000](http://localhost:3000) to view the app.
 ## 📦 Build & Production
 
 ```bash
-npm run build
-npm run start
+bun run build   # runs prisma generate + next build
+bun run start
 ```
 
-Deploy directly to **Vercel** — just connect your GitHub repository and add the same environment variables in the Vercel dashboard.
+Deploy directly to **Vercel** — just connect your GitHub repository, select **Bun** as the install/runtime command (or use `bunx next build --turbopack` as the build command) and add the same environment variables in the Vercel dashboard. PostgreSQL on Neon works with zero config.
 
 ---
 
-## 🧪 Testing
-
-If tests are included, run them with:
+## 🧹 Quality Checks
 
 ```bash
-npm test
+bunx tsc --noEmit   # type checking
+bun run lint        # ESLint
 ```
 
 ---
@@ -136,19 +175,17 @@ Contributions are always welcome!
 
 ## 📸 Screenshot
 
-![Rivorea Screenshot](https://res.cloudinary.com/dfyafxdwe/image/upload/v1762939179/Rivorea_Post_Copy_rujrkg.jpg)
+![AntiMising Screenshot](https://res.cloudinary.com/dfyafxdwe/image/upload/v1762939179/Rivorea_Post_Copy_rujrkg.jpg)
 
 ---
-
-
 
 ## 🙏 Credits
 
 Developed by [Imran Ahmed](https://github.com/imranDv1)
 
-* GitHub: [Rivorea-notes](https://github.com/imranDv1/Rivorea-notes)
+* GitHub: [AntiMising](https://github.com/imranDv1/Rivorea-notes)
 * Live Demo: [rivorea-notes.vercel.app](https://rivorea-notes.vercel.app)
 
 ---
 
-✨ *"Rivorea-notes — Capture, organize, and think better."*
+✨ *"AntiMising — Capture, organize, and think better."*

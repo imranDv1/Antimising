@@ -12,31 +12,35 @@ import {
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/tiptap-utils";
 
 const FREE_FEATURES = [
-  "Unlimited notes",
+  "Up to 10 notes",
+  "3,000 characters per note",
+  "Up to 3 images per note",
+  "Up to 10 saved passwords",
+  "Up to 3 canvas boards",
   "Rich text formatting (bold, italics, headings, checklists, and more)",
   "Organize notes with folders & tags",
   "Instant search within your notes",
   "Cross-device sync (up to 2 devices)",
-  "Basic image upload per note",
   "Export your notes (Markdown, PDF)",
   "Secure & private by default",
 ];
 
 const PRO_FEATURES = [
   "Everything in Free plan",
-  "Unlimited device sync",
+  "Unlimited notes",
+  "10,000 characters per note",
+  "Up to 10 images per note",
+  "Unlimited password manager entries",
+  "Unlimited canvas boards",
   "AI-powered note writer & smart suggestions",
   "Advanced search (semantic/AI search, filters)",
-  "Upload more images per note (up to 10/images per note)",
+  "Unlimited device sync",
   "Note version history & recovery",
   "Priority support via email/Discord",
-  "Early access to new features",
-  "Larger individual note size limit",
-  "Advanced organization: nested folders, custom tags",
-  "Custom note themes & appearance",
 ];
 
 export default function PricingClient({
@@ -69,11 +73,11 @@ export default function PricingClient({
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(data.message || "Subscription failed");
+        toast.error(data.message || "Subscription failed");
       }
     } catch (error) {
       console.error(error);
-      alert("حدث خطأ أثناء الاشتراك");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -95,7 +99,7 @@ export default function PricingClient({
 
         <div className="mt-8 grid gap-6 md:mt-20 md:grid-cols-2">
           {/* Free Card */}
-          <Card>
+          <Card className="rounded-none  dark:bg-black">
             <CardHeader>
               <CardTitle className="font-medium">Free</CardTitle>
               <span className="my-3 block text-2xl font-semibold">$0 / mo</span>
@@ -121,9 +125,9 @@ export default function PricingClient({
 
           {/* Pro Card */}
           <Card
-            className={cn("relative", hasSubscription ? "border-primary" : "")}
+            className={cn("relative rounded-none dark:bg-black", hasSubscription ? "border-primary" : "")}
           >
-            <span className="absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center  bg-gradient-to-br from-purple-400 to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-inset ring-white/20 ring-offset-1 ring-offset-gray-950/5">
+            <span className="absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center  bg-gradient-to-br from-primary to-emerald-600 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-inset ring-white/20 ring-offset-1 ring-offset-gray-950/5">
               Popular
             </span>
 

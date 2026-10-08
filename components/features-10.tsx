@@ -4,7 +4,7 @@ import { Calendar, LucideIcon, MapIcon } from "lucide-react";
 import Image from "next/image";
 import { ReactNode } from "react";
 
-// NOTE: Text changed throughout feature section for Rivorea Notes.
+// NOTE: Text changed throughout feature section for AntiMising.
 
 export default function Features10() {
   return (
@@ -16,7 +16,7 @@ export default function Features10() {
               <CardHeading
                 icon={MapIcon}
                 title="Powerful Search & Quick Navigation"
-                description="Easily find and jump to any note with our lightning-fast global search. Rivorea Notes helps you stay organized and always find what you need."
+                description="Easily find and jump to any note with our lightning-fast global search. AntiMising helps you stay organized and always find what you need."
               />
             </CardHeader>
 
@@ -42,7 +42,7 @@ export default function Features10() {
               <CardHeading
                 icon={Calendar}
                 title="Instant Sync Across Devices"
-                description="Edit your notes anywhere—changes appear immediately across all your devices. Rivorea Notes keeps your knowledge always up-to-date."
+                description="Edit your notes anywhere—changes appear immediately across all your devices. AntiMising keeps your knowledge always up-to-date."
               />
             </CardHeader>
 
@@ -63,7 +63,7 @@ export default function Features10() {
 
           <FeatureCard className="p-6 lg:col-span-2">
             <p className="mx-auto my-6 max-w-md text-balance text-center text-2xl font-semibold">
-              Effortless notes, organized and synced—Rivorea Notes.
+              Effortless notes, organized and synced — AntiMising.
             </p>
 
             <div className="flex justify-center gap-6 overflow-hidden">
@@ -102,7 +102,7 @@ interface FeatureCardProps {
 
 const FeatureCard = ({ children, className }: FeatureCardProps) => (
   <Card
-    className={cn("group relative rounded-none shadow-zinc-950/5", className)}
+    className={cn("group relative rounded-none dark:bg-black shadow-zinc-950/5", className)}
   >
     <CardDecorator />
     {children}

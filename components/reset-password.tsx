@@ -74,7 +74,7 @@ export default function ResetPasswordPage() {
             <div>
               <Link href="/" aria-label="go home" className="flex items-center gap-3">
                 <LogoIcon className="size-6" />
-                <span>Antimis</span>
+                <span>AntiMising</span>
               </Link>
               <h1 className="mb-1 mt-4 text-xl font-semibold">
                 Invalid reset link
@@ -110,7 +110,7 @@ export default function ResetPasswordPage() {
           <div>
             <Link href="/" aria-label="go home" className="flex items-center gap-3">
               <LogoIcon className="size-6" />
-              <span>Antimis</span>
+              <span>AntiMising</span>
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
               Set a new password

@@ -65,7 +65,7 @@ export function NavMain({
                     <span className="flex items-center gap-2">
                       {item.title}
                       {item.badge != null && item.badge !== "" && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                        <span className="flex h-5 min-w-5 items-center justify-center rounded-none bg-primary/10 border border-primary dark:text-white px-1.5 text-[10px] font-semibold leading-none text-primary-foreground">
                           {item.badge}
                         </span>
                       )}

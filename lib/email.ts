@@ -3,7 +3,7 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM =
-  process.env.RESEND_FROM || "Rivorea Notes <onboarding@resend.dev>";
+  process.env.RESEND_FROM || "AntiMising <onboarding@resend.dev>";
 
 export async function sendEmail({
   to,
@@ -40,7 +40,7 @@ export function resetPasswordEmailHTML(url: string, name: string) {
                   Hi ${name || "there"},
                 </p>
                 <p style="margin:0 0 24px;font-size:14px;color:#52525b;line-height:1.6;">
-                  We received a request to reset the password for your Rivorea Notes account.
+                  We received a request to reset the password for your AntiMising account.
                   Click the button below to choose a new password. This link expires in 1 hour.
                 </p>
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">

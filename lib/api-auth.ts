@@ -11,7 +11,8 @@ import { NextResponse } from "next/server";
  *
  * Exceptions (intentionally session-less):
  *   - /api/auth/*        (Better Auth handler)
- *   - /api/stripe/webhook (verified via Stripe HMAC signature)
+ *   - /api/sifalopay/webhook (public; every sid is re-verified server-side
+ *     with Sifalo verify.php before fulfilment, and fulfilment is idempotent)
  */
 
 export async function getSessionUserId(): Promise<string | null> {

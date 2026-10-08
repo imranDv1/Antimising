@@ -3,6 +3,11 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import {
+  getPlanLimits,
+  withUserScopeLock,
+  PlanLimitError,
+} from "@/lib/limits";
 
 export async function POST(request: Request) {
   const { title, description, category, userId } = await request.json();
@@ -28,18 +33,36 @@ export async function POST(request: Request) {
   }
 
   try {
-    await prisma.note.create({
-      data: {
-        id: uuidv4(),
-        title,
-        description,
-        category,
-        userId,
-      },
+    const limits = await getPlanLimits(userIdFromSession);
+
+    await withUserScopeLock(userIdFromSession, "note", async (tx) => {
+      if (limits.noteLimit !== null) {
+        const owned = await tx.note.count({
+          where: { userId: userIdFromSession },
+        });
+        if (owned >= limits.noteLimit) {
+          throw new PlanLimitError(
+            `Free plan is limited to ${limits.noteLimit} notes. Upgrade to Pro for unlimited notes.`
+          );
+        }
+      }
+
+      await tx.note.create({
+        data: {
+          id: uuidv4(),
+          title,
+          description,
+          category,
+          userId,
+        },
+      });
     });
 
     return NextResponse.json("note create successfuly");
   } catch (error) {
+    if (error instanceof PlanLimitError) {
+      return NextResponse.json({ message: error.message }, { status: 403 });
+    }
     return NextResponse.json("error create note" + error, { status: 500 });
   }
 }

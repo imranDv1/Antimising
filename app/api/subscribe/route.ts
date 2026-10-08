@@ -1,62 +1,37 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-import { PrismaClient } from "@/lib/generated/prisma";
-import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
-
-const prisma = new PrismaClient();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-08-27.basil",
-});
+import { getSessionUserId, unauthorized } from "@/lib/api-auth";
+import { startSifaloCheckout } from "@/lib/sifalopay";
+import { forbidden } from "@/lib/api-auth";
 
 export async function POST(request: NextRequest) {
   try {
     const sessionUserId = await getSessionUserId();
     if (!sessionUserId) return unauthorized();
 
-    const { userId } = await request.json();
-
-    if (!userId) {
-      return NextResponse.json({ message: "userId is required" }, { status: 400 });
+    // The authenticated session is the account; a client-supplied userId (if
+    // any) must match it. The amount always comes from SIFALO_PRICE_USD
+    // server-side and is never accepted from the request body.
+    const body = (await request.json().catch(() => ({}))) as {
+      userId?: string;
+      amount?: unknown;
+    };
+    if (typeof body.amount !== "undefined") {
+      return NextResponse.json(
+        { message: "Amount is managed by the server" },
+        { status: 400 }
+      );
     }
-    if (userId !== sessionUserId) {
+    if (typeof body.userId !== "undefined" && body.userId !== sessionUserId) {
       return forbidden("You can only subscribe with your own account");
     }
 
-    // Get user email from DB
-    const user = await prisma.user.findUnique({ where: { id: sessionUserId } });
-    if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
+    const url = await startSifaloCheckout(sessionUserId);
 
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"], // Apple Pay / Google Pay automatically available on supported browsers
-      mode: "subscription",
-      customer_email: user.email,
-     
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "PRO Subscription",
-            },
-            unit_amount: 900, // $9.00 in cents
-            recurring: { interval: "month" },
-          },
-          quantity: 1,
-        },
-      ],
-          success_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscribe/cancel`,
-          metadata: { userId: sessionUserId },
-    });
-
-    return NextResponse.json({ url: session.url });
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ message: err.message }, { status: 500 });
+    return NextResponse.json({ url });
+  } catch (err) {
+    console.error("Error starting Sifalo checkout:", err);
+    const message =
+      err instanceof Error ? err.message : "Failed to start checkout";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
-

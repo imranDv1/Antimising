@@ -20,7 +20,7 @@ const Page = (props: { params: Promise<tParams> }) => {
     "owner",
   );
   const [isFetched, setIsFetched] = useState(false);
-  const [MAX_CHARS, setMaxChars] = useState<number>(1000); // default limit
+  const [MAX_CHARS, setMaxChars] = useState<number>(3000); // default limit
   const [limit, setMaxlimit] = useState<number>(3); // default limit
   const [error, setUIerror] = useState("");
   const [retrySignal, setRetrySignal] = useState(0);
@@ -76,11 +76,11 @@ const Page = (props: { params: Promise<tParams> }) => {
         if (!res.ok) throw new Error("Failed to fetch MAX_CHARS");
 
         const data = await res.json();
-        setMaxChars(data.MAX_CHARS || 1000);
+        setMaxChars(data.MAX_CHARS || 3000);
         setMaxlimit(data.limit || 3);
       } catch (err) {
         console.error(err);
-        setMaxChars(1000); // fallback if error
+        setMaxChars(3000); // fallback if error
         setMaxlimit(3);
       }
     };

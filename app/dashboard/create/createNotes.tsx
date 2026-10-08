@@ -446,7 +446,7 @@ const CreateNotesPage = ({
       closeDialog();
       triggerRefresh();
     } else {
-      toast.error("Failed to create note");
+      toast.error(result.message || "Failed to create note");
     }
     setLoading(false);
   };

@@ -1,50 +1,44 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-import { PrismaClient } from "@/lib/generated/prisma";
-import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
-
-const prisma = new PrismaClient();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-08-27.basil",
-});
+import { getSessionUserId, unauthorized } from "@/lib/api-auth";
+import { fulfillSifaloPayment } from "@/lib/sifalopay";
 
 export async function POST(request: NextRequest) {
   try {
     const sessionUserId = await getSessionUserId();
     if (!sessionUserId) return unauthorized();
 
-    const { sessionId } = await request.json();
+    // The session determines the user. Any order_id on the return URL is
+    // deliberately ignored — it must never be trusted from the client.
+    const { sid } = (await request.json().catch(() => ({}))) as {
+      sid?: string;
+    };
 
-    if (!sessionId) {
-      return NextResponse.json({ message: "sessionId is required" }, { status: 400 });
+    if (!sid || typeof sid !== "string") {
+      return NextResponse.json(
+        { message: "sid is required" },
+        { status: 400 }
+      );
     }
 
-    // Retrieve Stripe session
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const result = await fulfillSifaloPayment({ sid, sessionUserId });
 
-    const userId = session.metadata?.userId;
-    if (!userId) {
-      return NextResponse.json({ message: "User ID not found in session metadata" }, { status: 400 });
-    }
-    // The paid checkout session must belong to the caller.
-    if (userId !== sessionUserId) {
-      return forbidden("This checkout session does not belong to you");
+    if (!result.ok) {
+      return NextResponse.json(
+        { message: result.reason },
+        { status: result.status }
+      );
     }
 
-    // Save subscription in DB with start and end dates
-    const startDate = new Date();
-    const endDate = new Date(new Date().setMonth(startDate.getMonth() + 1)); // 1 month from start
-
-    await prisma.subscription.upsert({
-      where: { userId },
-      update: { startDate, endDate, isActive: true },
-      create: { userId, startDate, endDate, isActive: true },
+    return NextResponse.json({
+      success: true,
+      alreadyFulfilled: result.alreadyFulfilled,
     });
-
-    return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ message: err.message }, { status: 500 });
+    console.error("Error saving subscription:", err);
+    return NextResponse.json(
+      { message: err.message || "Failed to save subscription" },
+      { status: 500 }
+    );
   }
 }

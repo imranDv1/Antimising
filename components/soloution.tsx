@@ -12,7 +12,7 @@ export function GlowingEffectDemoSecond() {
       <GridItem
         area="md:[grid-area:1/1/2/7] xl:[grid-area:1/1/2/5]"
         icon={<Box className="h-4 w-4 text-black dark:text-neutral-400" />}
-        title="Welcome to Rivorea Notes"
+        title="Welcome to AntiMising"
         description="A modern note-taking platform powered by Gemini AI, designed to help you think, organize, and create effortlessly."
       />
 
@@ -41,7 +41,7 @@ export function GlowingEffectDemoSecond() {
         area="md:[grid-area:3/1/4/13] xl:[grid-area:2/8/3/13]"
         icon={<Search className="h-4 w-4 text-black dark:text-neutral-400" />}
         title="Search Everything Instantly"
-        description="Find notes by keyword, idea, or even concept. Rivorea Notes understands what you mean."
+        description="Find notes by keyword, idea, or even concept. AntiMising understands what you mean."
       />
     </ul>
   );

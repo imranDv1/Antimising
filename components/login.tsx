@@ -88,10 +88,10 @@ export default function LoginPage() {
           <div>
             <Link href="/" aria-label="go home" className="flex items-center gap-3">
               <LogoIcon className="size-6" />
-              <span>Antimis</span>
+              <span>AntiMising</span>
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
-              Sign In to Rivorea notes
+              Sign In to AntiMising
             </h1>
             <p className="text-muted-foreground">
               Welcome back! Sign in to continue

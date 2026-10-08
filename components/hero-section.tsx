@@ -51,25 +51,25 @@ function HeroAppPreview() {
   return (
     <AnimatedGroup variants={heroPreviewVariants}>
       <div className="mask-b-from-55% relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20">
-        <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden  border p-4 shadow-lg shadow-zinc-950/15 ring-1">
+        <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden border border-primary/40 p-4 shadow-lg shadow-zinc-950/15 ring-1">
           <Image
-            className="bg-background object-cover object-top aspect-15/8 relative hidden  dark:block"
-            src="/Images/Rivorea Post.jpg"
+            className="bg-background object-cover object-left aspect-15/8 relative hidden  dark:block"
+            src="/Images/Screenshot 2026-10-09 005536.png"
             alt="app screen"
             width="2700"
             height="1440"
           />
           <Image
-            className="z-2 border-border/25 object-cover object-top aspect-15/8 relative  border dark:hidden"
-            src="/Images/Rivorea Pos tLight.jpg"
+            className="z-2 border-primary/30 object-cover object-left aspect-15/8 relative  border dark:hidden"
+            src="/Images/image.png"
             alt="app screen"
             width="2700"
             height="1440"
           />
           <BorderBeam
             size={330}
-            colorFrom="#ff8540"
-            colorTo="#ff6467"
+            colorFrom="#5FE9C0"
+            colorTo="#14DD90"
             borderWidth={3}
           />
         </div>
@@ -83,7 +83,7 @@ export default function HeroSection(): React.ReactElement {
   return (
     <>
       <HeroHeader />
-      <main className="overflow-hidden">
+      <main className="overflow-hidden dark:bg-black">
         <div
           aria-hidden
           className="absolute inset-0 isolate hidden opacity-65 contain-strict lg:block"
@@ -133,7 +133,7 @@ export default function HeroSection(): React.ReactElement {
                     className="hover:bg-background dark:hover:border-t-border bg-background group mx-auto flex w-fit items-center gap-4  border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950"
                   >
                     <span className="text-foreground text-sm">
-                      Introducing Support for AI Models
+                      Introducing the infinite Canvas whiteboard
                     </span>
                     <span className="dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700"></span>
 
@@ -166,9 +166,9 @@ export default function HeroSection(): React.ReactElement {
                   as="p"
                   className="mx-auto mt-8 max-w-4xl text-muted-foreground text-balance text-lg"
                 >
-                  Rivorea Notes helps you capture ideas, manage tasks, and keep
-                  everything in one place. Fast, simple, and accessible
-                  anywhere.
+                  AntiMising helps you capture ideas, organize notes, manage
+                  passwords, and sketch on an infinite canvas. Fast, simple, and
+                  accessible anywhere.
                 </TextEffect>
               </div>
             </div>

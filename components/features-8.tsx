@@ -8,7 +8,7 @@ export default function FeaturesSection() {
       <div className="mx-auto max-w-7xl px-6">
         <div className="relative">
           <div className="relative z-10 grid grid-cols-6 gap-3">
-            <Card className=" bg-background relative col-span-full flex overflow-hidden lg:col-span-2">
+            <Card className=" dark:bg-black rounded-none relative col-span-full flex overflow-hidden lg:col-span-2">
               <CardContent className="relative m-auto size-fit pt-6">
                 <div className="relative flex h-24 w-56 items-center">
                   <svg
@@ -31,7 +31,7 @@ export default function FeaturesSection() {
                 </h2>
               </CardContent>
             </Card>
-            <Card className="bg-background relative col-span-full overflow-hidden sm:col-span-3 lg:col-span-2">
+            <Card className="dark:bg-black rounded-none relative col-span-full overflow-hidden sm:col-span-3 lg:col-span-2">
               <CardContent className="pt-6">
                 <div className="relative mx-auto flex aspect-square size-32  border before:absolute before:-inset-2 before: before:border dark:border-white/10 dark:before:border-white/5">
                   <svg
@@ -90,13 +90,13 @@ export default function FeaturesSection() {
                     Secure by default
                   </h2>
                   <p className="text-foreground">
-                    Provident fugit and vero voluptate. magnam magni doloribus
-                    dolores voluptates a sapiente nisi.
+                    Notes, passwords, and canvases are encrypted at rest — your
+                    workspace is private by design.
                   </p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-background relative col-span-full overflow-hidden sm:col-span-3 lg:col-span-2">
+            <Card className="dark:bg-black rounded-none relative col-span-full overflow-hidden sm:col-span-3 lg:col-span-2">
               <CardContent className="pt-6">
                 <div className="pt-6 lg:px-6">
                   <svg
@@ -182,16 +182,16 @@ export default function FeaturesSection() {
                 </div>
                 <div className="relative z-10 mt-14 space-y-2 text-center">
                   <h2 className="text-lg font-medium transition">
-                    Faster than light
+                    Find anything, instantly
                   </h2>
                   <p className="text-foreground">
-                    Provident fugit vero voluptate. magnam magni doloribus
-                    dolores voluptates inventore nisi.
+                    Lightning-fast search across titles, tags, and note content
+                    — no more digging through folders.
                   </p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-background card variant-outlined relative col-span-full overflow-hidden lg:col-span-3">
+            <Card className="dark:bg-black rounded-none card variant-outlined relative col-span-full overflow-hidden lg:col-span-3">
               <CardContent className="grid pt-6 sm:grid-cols-2">
                 <div className="relative z-10 flex flex-col justify-between space-y-12 lg:space-y-6">
                   <div className="relative flex aspect-square size-12  border before:absolute before:-inset-2 before: before:border dark:border-white/10 dark:before:border-white/5">
@@ -199,11 +199,11 @@ export default function FeaturesSection() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="group-hover:text-secondary-950 text-lg font-medium text-zinc-800 transition dark:text-white">
-                      Faster than light
+                      Password manager
                     </h2>
                     <p className="text-foreground">
-                      Provident fugit vero voluptate. Voluptates a sapiente
-                      inventore nisi.
+                      Store passwords and secrets in an encrypted vault that
+                      only you can unlock.
                     </p>
                   </div>
                 </div>
@@ -256,7 +256,7 @@ export default function FeaturesSection() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-background card variant-outlined relative col-span-full overflow-hidden lg:col-span-3">
+            <Card className="dark:bg-black rounded-none card variant-outlined relative col-span-full overflow-hidden lg:col-span-3">
               <CardContent className="grid h-full pt-6 sm:grid-cols-2">
                 <div className="relative z-10 flex flex-col justify-between space-y-12 lg:space-y-6">
                   <div className="relative flex aspect-square size-12  border before:absolute before:-inset-2 before: before:border dark:border-white/10 dark:before:border-white/5">
@@ -264,11 +264,11 @@ export default function FeaturesSection() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="text-lg font-medium transition">
-                      Keep your loved ones safe
+                      Share notes with anyone
                     </h2>
                     <p className="text-foreground">
-                      Voluptate. magnam magni doloribus dolores voluptates a
-                      sapiente inventore nisi.
+                      Collaborate with teammates — share a note and they always
+                      see the latest version.
                     </p>
                   </div>
                 </div>
