@@ -2,6 +2,12 @@
 import SignUpPage from "@/components/signUp";
 import { Ripple } from "@/components/ui/ripple";
 import React from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Create Account",
+  description: "Create your free AntiMising account — notes, canvas, and passwords in one secure place.",
+};
   
 const SignUp = () => {
   return (
