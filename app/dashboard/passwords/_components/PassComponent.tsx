@@ -176,7 +176,7 @@ const PassComponent = ({ pass }: GetPass) => {
   const isLoadingPasses = CreateLoading || DeleteLoading;
 
   const SkeletonCard = () => (
-    <Card>
+    <Card className="rounded-none">
       <CardHeader>
         <div className="flex items-center justify-between animate-pulse">
           <div className="h-5 w-32 bg-muted rounded" />
@@ -530,7 +530,7 @@ const PassComponent = ({ pass }: GetPass) => {
         )}
         {!isLoadingPasses &&
           filteredPasses.map((pass) => (
-            <Card key={pass.id}>
+            <Card key={pass.id} className="rounded-none">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {pass.title}

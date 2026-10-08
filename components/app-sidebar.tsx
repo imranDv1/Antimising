@@ -1,18 +1,15 @@
 "use client";
 
-import * as React from "react";
 import {
   IconCamera,
   IconDatabase,
   IconFileAi,
   IconFileDescription,
   IconFileWord,
-  IconFolder,
-  IconHelp,
   IconReport,
-  IconSearch,
-  IconSettings,
+  IconSettings
 } from "@tabler/icons-react";
+import * as React from "react";
 
 import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
@@ -27,19 +24,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import {
-  ClipboardCheck,
-  FileKey2,
-  Files,
-  FileText,
-  LayoutDashboard,
-  Users,
-} from "lucide-react";
-import { Logo } from "./logo";
-import Link from "next/link";
-import { authClient } from "@/lib/auth-client";
 import { useNotificationStore } from "@/context/profileUpdateNotification";
 import { useSharedStore } from "@/context/sharedStore";
+import { authClient } from "@/lib/auth-client";
+import {
+  Boxes,
+  FolderLock,
+  NotepadTextDashed,
+  Users
+} from "lucide-react";
+import Link from "next/link";
+import { Logo } from "./logo";
 import { Separator } from "./ui/separator";
 
 const data = {
@@ -52,13 +47,13 @@ const data = {
     {
       title: "All Notes",
       url: "/dashboard/create",
-      icon: Files,
+      icon: NotepadTextDashed,
     },
 
     {
       title: "Password Manager",
       url: "/dashboard/passwords",
-      icon: FileKey2,
+      icon: FolderLock,
       // badge: "new",
     },
 
@@ -208,13 +203,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     {
       title: "Shared Notes",
       url: "/dashboard/shared",
-      icon: Users,
-      badge: sharedBadge,
+      icon: Boxes,
+      badge: "new",
     },
   ];
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="offcanvas" {...props} className="bg-black">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -224,7 +219,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link href="/" className="flex item-center justify-start">
                 <Logo />
-                <span className="text-2xl font-semibold">Antimis</span>
+                <span className="text-2xl font-semibold font-sans ">Anti<span className="text-primary">Mising</span></span>
               </Link>
             </SidebarMenuButton>
             <Separator className="mt-3"/>

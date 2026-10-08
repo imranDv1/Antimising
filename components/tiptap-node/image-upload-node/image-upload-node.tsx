@@ -5,6 +5,7 @@ import type { NodeViewProps } from "@tiptap/react"
 import { NodeViewWrapper } from "@tiptap/react"
 import { Button } from "@/components/tiptap-ui-primitive/button"
 import { CloseIcon } from "@/components/tiptap-icons/close-icon"
+import { Loader2 } from "lucide-react"
 import "@/components/tiptap-node/image-upload-node/image-upload-node.scss"
 import { focusNextNode, isValidPosition } from "@/lib/tiptap-utils"
 import { toast } from "sonner" // <-- make sure you have 'sonner' installed
@@ -324,7 +325,8 @@ const ImageUploadPreview: React.FC<ImageUploadPreviewProps> = ({
         <div className="tiptap-image-upload-actions">
           {fileItem.status === "uploading" && (
             <span className="tiptap-image-upload-progress-text">
-           uploading..
+              <Loader2 className="tiptap-image-upload-spinner" />
+              {fileItem.progress}%
             </span>
           )}
           <Button
@@ -423,7 +425,6 @@ export const ImageUploadNode: React.FC<NodeViewProps> = (props) => {
           return {
             type: extension.options.type,
             attrs: {
-              ...extension.options,
               src: url,
               alt: filename,
               title: filename,

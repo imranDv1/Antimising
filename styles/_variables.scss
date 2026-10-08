@@ -63,18 +63,18 @@
 
   /* Brand colors */
 
-  /* Brand colors (Orange scale) */
-  --tt-brand-color-50:  rgb(255, 242, 233); /* أفتح شيء */
-  --tt-brand-color-100: rgb(255, 224, 204);
-  --tt-brand-color-200: rgb(255, 204, 170);
-  --tt-brand-color-300: rgb(255, 183, 136);
-  --tt-brand-color-400: rgb(255, 133, 64);   /* اللون الأساسي */
-  --tt-brand-color-500: rgb(230, 110, 45);
-  --tt-brand-color-600: rgb(204, 92, 35);
-  --tt-brand-color-700: rgb(179, 75, 28);
-  --tt-brand-color-800: rgb(153, 61, 23);
-  --tt-brand-color-900: rgb(128, 51, 18);
-  --tt-brand-color-950: rgb(77, 30, 10);     /* أغمق شيء */
+  /* Brand colors (Primary green scale — matches app --primary) */
+  --tt-brand-color-50:  oklch(0.975 0.03 159);
+  --tt-brand-color-100: oklch(0.945 0.05 159);
+  --tt-brand-color-200: oklch(0.905 0.075 159);
+  --tt-brand-color-300: oklch(0.860 0.11 159);
+  --tt-brand-color-400: oklch(0.825 0.15 159);
+  --tt-brand-color-500: oklch(0.7924 0.1795 158.9982); /* = --primary */
+  --tt-brand-color-600: oklch(0.700 0.16 159);
+  --tt-brand-color-700: oklch(0.615 0.14 159);
+  --tt-brand-color-800: oklch(0.530 0.115 159);
+  --tt-brand-color-900: oklch(0.450 0.095 159);
+  --tt-brand-color-950: oklch(0.350 0.075 159);
 
 
 .drag-handle {
@@ -203,7 +203,7 @@
   --tt-sidebar-bg-color: var(--tt-gray-light-100);
   --tt-scrollbar-color: var(--tt-gray-light-a-200);
   --tt-cursor-color: var(--tt-brand-color-500);
-  --tt-selection-color: rgba(255, 163, 138, 0.2);
+  --tt-selection-color: color-mix(in srgb, var(--primary) 25%, transparent);
   --tt-card-bg-color: var(--white);
   --tt-card-border-color: var(--tt-gray-light-a-100);
 }
@@ -216,7 +216,7 @@
   --tt-sidebar-bg-color: var(--tt-gray-dark-100);
   --tt-scrollbar-color: var(--tt-gray-dark-a-200);
   --tt-cursor-color: var(--tt-brand-color-400);
-  --tt-selection-color: rgba(255, 169, 82, 0.2);
+  --tt-selection-color: color-mix(in srgb, var(--primary) 30%, transparent);
   --tt-card-bg-color: var(--tt-gray-dark-50);
   --tt-card-border-color: var(--tt-gray-dark-a-50);
 

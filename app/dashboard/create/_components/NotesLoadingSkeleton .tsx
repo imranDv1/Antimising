@@ -26,14 +26,16 @@ const NoteCardSkeleton = () => (
 
 const NotesLoadingSkeleton = ({ count = 6 }: { count?: number }) => (
   <div className="mt-4 flex w-full flex-col gap-6">
-    {/* Header */}
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-20" />
+    {/* Header: title + count pill + action button (row 1), search (row 2) */}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-8 w-44" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-10 w-32" />
       </div>
-      <Skeleton className="hidden h-10 flex-1 sm:block sm:max-w-sm lg:max-w-xs" />
-      <Skeleton className="h-10 w-32" />
+      <Skeleton className="h-10 w-full sm:max-w-md" />
     </div>
 
     {/* Cards */}

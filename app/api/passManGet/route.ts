@@ -1,23 +1,21 @@
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { decryptPassword } from "@/lib/password-encryption";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
   const { userId } = await request.json();
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+  const sessionUserId = await getSessionUserId();
+  if (!sessionUserId) return unauthorized();
   if (!userId) {
     return NextResponse.json(
       { message: "userId is required" },
       { status: 400 }
     );
+  }
+  if (userId !== sessionUserId) {
+    return forbidden("You can only read your own vault");
   }
 
   try {

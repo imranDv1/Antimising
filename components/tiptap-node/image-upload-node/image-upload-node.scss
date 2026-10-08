@@ -216,11 +216,29 @@
       gap: 0.5rem;
 
       .tiptap-image-upload-progress-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
         font-size: 0.75rem;
         color: var(--tiptap-image-upload-border-active);
         font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        min-width: 3.25rem;
+        justify-content: flex-end;
+      }
+
+      .tiptap-image-upload-spinner {
+        width: 0.75rem;
+        height: 0.75rem;
+        animation: tiptap-upload-spin 0.8s linear infinite;
       }
     }
+  }
+}
+
+@keyframes tiptap-upload-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

@@ -6,7 +6,7 @@ import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor
 import { authClient } from "@/lib/auth-client";
 import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
 import { useSharedStore } from "@/context/sharedStore";
-import { ArrowLeftToLine, ShieldOff } from "lucide-react";
+import { ArrowLeftToLine, RefreshCw, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ const Page = (props: { params: Promise<tParams> }) => {
   const [MAX_CHARS, setMaxChars] = useState<number>(1000); // default limit
   const [limit, setMaxlimit] = useState<number>(3); // default limit
   const [error, setUIerror] = useState("");
+  const [retrySignal, setRetrySignal] = useState(0);
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
 
@@ -93,6 +94,7 @@ const Page = (props: { params: Promise<tParams> }) => {
 
     const fetchNotes = async () => {
       setIsFetched(false);
+      setUIerror("");
       try {
         const res = await fetch("/api/notebody", {
           method: "POST",
@@ -125,7 +127,7 @@ const Page = (props: { params: Promise<tParams> }) => {
     };
 
     fetchNotes();
-  }, [userId, params, refreshEditorSignal]);
+  }, [userId, params, refreshEditorSignal, retrySignal]);
 
   if (!params || !isFetched) return null;
 
@@ -144,9 +146,21 @@ const Page = (props: { params: Promise<tParams> }) => {
         >
           <ArrowLeftToLine /> Back to your notes{" "}
         </Link>
-        <div className="text-center flex items-center gap-4 bg-red-500/10 p-3  border-2 border-red-600">
-          <ShieldOff className="text-red-600 size-8" />
-          <p className="text-red-600 text-3xl font-medium">{error}</p>
+        <div className="text-center flex flex-col items-center gap-4 bg-red-500/10 p-6  border-2 border-red-600">
+          <div className="flex items-center gap-4">
+            <ShieldOff className="text-red-600 size-8" />
+            <p className="text-red-600 text-3xl font-medium">{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRetrySignal((c) => c + 1)}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "flex items-center gap-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white",
+            )}
+          >
+            <RefreshCw className="size-4" /> Try again
+          </button>
         </div>
       </div>
     );

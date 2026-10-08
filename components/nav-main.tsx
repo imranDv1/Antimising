@@ -28,7 +28,7 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu>
+        {/* <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
               tooltip="Quick Create Note"
@@ -44,7 +44,7 @@ export function NavMain({
             </SidebarMenuButton>
      
           </SidebarMenuItem>
-        </SidebarMenu>
+        </SidebarMenu> */}
 
         <SidebarMenu>
           {items.map((item) => {
@@ -56,7 +56,7 @@ export function NavMain({
                   asChild
                   className={`flex items-center gap-2 duration-200 p-2${
                     isActive
-                      ? " text-primary"
+                      ? "  dark:bg-[#212124] border dark:border-[#404043] shadow"
                       : "hover:bg-muted/50 text-muted-foreground"
                   }`}
                 >

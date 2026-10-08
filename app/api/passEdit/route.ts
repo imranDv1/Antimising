@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { encryptPassword } from "@/lib/password-encryption";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 export async function PUT(request: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { id, title, description, emailOruser, password, category } =
       await request.json();
 
     if (!id) {
       return NextResponse.json({ message: "id is required" }, { status: 400 });
+    }
+
+    const existing = await prisma.passwordManeger.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ message: "pass not found" }, { status: 404 });
+    }
+    if (existing.userId !== sessionUserId) {
+      return forbidden("You do not own this entry");
     }
 
     const data: Record<string, string> = {};

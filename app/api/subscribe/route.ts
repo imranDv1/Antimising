@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { PrismaClient } from "@/lib/generated/prisma";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -10,14 +11,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { userId } = await request.json();
 
     if (!userId) {
       return NextResponse.json({ message: "userId is required" }, { status: 400 });
     }
+    if (userId !== sessionUserId) {
+      return forbidden("You can only subscribe with your own account");
+    }
 
     // Get user email from DB
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: sessionUserId } });
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
@@ -41,9 +48,9 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscribe/cancel`,
-      metadata: { userId },
+          success_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/subscribe/cancel`,
+          metadata: { userId: sessionUserId },
     });
 
     return NextResponse.json({ url: session.url });

@@ -11,15 +11,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--sidebar-width": "calc(var(--spacing) * 56)",
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="sidebar" />
       <SidebarInset>
         <SiteHeader />
-        <div className="w-full max-w-[77rem] mx-auto px-4">
+        <div className="w-full px-4">
           <DialogProvider>{children}</DialogProvider>
 
           <Toaster

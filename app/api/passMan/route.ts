@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { encryptPassword } from "@/lib/password-encryption";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 export async function POST(request: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { userId, title, description, emailOruser, password, category } =
       await request.json();
 
@@ -11,6 +15,9 @@ export async function POST(request: Request) {
         { message: "userId is required" },
         { status: 400 }
       );
+    }
+    if (userId !== sessionUserId) {
+      return forbidden("You can only create entries in your own vault");
     }
     if (!title) {
       return NextResponse.json(

@@ -1,33 +1,47 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@/lib/generated/prisma";
+import { prisma } from "@/lib/db";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
-const prisma = new PrismaClient();
+// Only the authenticated session user may read/modify their own favorites.
+function resolveUserId(
+  sessionUserId: string,
+  requestedUserId: string | null | undefined
+): NextResponse | string {
+  if (!requestedUserId) return sessionUserId;
+  if (requestedUserId !== sessionUserId) {
+    return forbidden("You can only access your own favorites");
+  }
+  return sessionUserId;
+}
 
-// ✅ إضافة/إزالة ملاحظة من المفضلة (toggle)
+// Add/remove a note from the user's favorites (toggle)
 export async function POST(req: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { userId, noteId } = await req.json();
-    if (!userId || !noteId) {
-      return NextResponse.json({ error: "Missing userId or noteId" }, { status: 400 });
+    if (!noteId) {
+      return NextResponse.json({ error: "Missing noteId" }, { status: 400 });
     }
 
-    // تحقق إذا كانت الملاحظة مفضلة بالفعل
+    const resolved = resolveUserId(sessionUserId, userId);
+    if (resolved instanceof NextResponse) return resolved;
+
     const existing = await prisma.favoriteNote.findUnique({
-      where: { userId_noteId: { userId, noteId } },
+      where: { userId_noteId: { userId: resolved, noteId } },
     });
 
     if (existing) {
-      // إذا موجودة نحذفها (toggle)
       await prisma.favoriteNote.delete({
-        where: { userId_noteId: { userId, noteId } },
+        where: { userId_noteId: { userId: resolved, noteId } },
       });
       return NextResponse.json({ message: "Removed from favorites", removed: true }, { status: 200 });
     }
 
-    // إذا مش موجودة نضيفها
     const favorite = await prisma.favoriteNote.create({
-      data: { userId, noteId },
+      data: { userId: resolved, noteId },
     });
 
     return NextResponse.json({ message: "Added to favorites", favorite, removed: false }, { status: 201 });
@@ -37,16 +51,22 @@ export async function POST(req: Request) {
   }
 }
 
-// ✅ إزالة ملاحظة من المفضلة (explicit DELETE)
+// Remove a note from the user's favorites (explicit DELETE)
 export async function DELETE(req: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { userId, noteId } = await req.json();
-    if (!userId || !noteId) {
-      return NextResponse.json({ error: "Missing userId or noteId" }, { status: 400 });
+    if (!noteId) {
+      return NextResponse.json({ error: "Missing noteId" }, { status: 400 });
     }
 
+    const resolved = resolveUserId(sessionUserId, userId);
+    if (resolved instanceof NextResponse) return resolved;
+
     const existing = await prisma.favoriteNote.findUnique({
-      where: { userId_noteId: { userId, noteId } },
+      where: { userId_noteId: { userId: resolved, noteId } },
     });
 
     if (!existing) {
@@ -54,7 +74,7 @@ export async function DELETE(req: Request) {
     }
 
     await prisma.favoriteNote.delete({
-      where: { userId_noteId: { userId, noteId } },
+      where: { userId_noteId: { userId: resolved, noteId } },
     });
 
     return NextResponse.json({ message: "Removed from favorites" }, { status: 200 });
@@ -64,20 +84,20 @@ export async function DELETE(req: Request) {
   }
 }
 
-// ✅ جلب الملاحظات المفضلة لمستخدم محدد
+// Get all favorites (with their notes) for the session user
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
 
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-    }
+    const { searchParams } = new URL(req.url);
+    const resolved = resolveUserId(sessionUserId, searchParams.get("userId"));
+    if (resolved instanceof NextResponse) return resolved;
 
     const favorites = await prisma.favoriteNote.findMany({
-      where: { userId },
+      where: { userId: resolved },
       include: {
-        note: true, // لازم يكون عندك relation اسمه "note" في Prisma schema
+        note: true,
       },
     });
 

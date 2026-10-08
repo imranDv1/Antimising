@@ -1,7 +1,9 @@
 .tiptap.ProseMirror {
   img {
-    max-width: 100%;
+    width: auto;
     height: auto;
+    max-width: 100%;
+    object-fit: contain;
     display: block;
   }
 
@@ -13,6 +15,70 @@
 
   img:not([data-type="emoji"] img).ProseMirror-selectednode {
     outline-color: var(--tt-brand-color-500);
+  }
+
+  // Resizable image node view
+  .tiptap-image-node {
+    position: relative;
+    width: fit-content;
+    margin: 2rem 0;
+
+    &.ProseMirror-selectednode {
+      outline: 0.125rem solid var(--tt-brand-color-500);
+      outline-offset: 0.125rem;
+      border-radius: var(--tt-radius-xs, 0.25rem);
+    }
+
+    img {
+      // explicit sizing comes from inline style (set by resize handles)
+      display: block;
+    }
+  }
+
+  .tiptap-image-resize-handle {
+    position: absolute;
+    width: 0.75rem;
+    height: 0.75rem;
+    background-color: var(--white, #ffffff);
+    border: 0.15rem solid var(--primary);
+    border-radius: 9999px;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+    z-index: 20;
+    touch-action: none;
+    user-select: none;
+    transition:
+      transform 120ms ease,
+      background-color 120ms ease;
+
+    &:hover,
+    &.is-active {
+      transform: scale(1.35);
+      background-color: var(--primary);
+    }
+
+    &--nw {
+      top: -0.4rem;
+      left: -0.4rem;
+      cursor: nwse-resize;
+    }
+
+    &--ne {
+      top: -0.4rem;
+      right: -0.4rem;
+      cursor: nesw-resize;
+    }
+
+    &--sw {
+      bottom: -0.4rem;
+      left: -0.4rem;
+      cursor: nesw-resize;
+    }
+
+    &--se {
+      bottom: -0.4rem;
+      right: -0.4rem;
+      cursor: nwse-resize;
+    }
   }
 
   // Thread image handling

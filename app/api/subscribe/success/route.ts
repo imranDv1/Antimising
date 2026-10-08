@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { PrismaClient } from "@/lib/generated/prisma";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 const prisma = new PrismaClient();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -10,6 +11,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { sessionId } = await request.json();
 
     if (!sessionId) {
@@ -22,6 +26,10 @@ export async function POST(request: NextRequest) {
     const userId = session.metadata?.userId;
     if (!userId) {
       return NextResponse.json({ message: "User ID not found in session metadata" }, { status: 400 });
+    }
+    // The paid checkout session must belong to the caller.
+    if (userId !== sessionUserId) {
+      return forbidden("This checkout session does not belong to you");
     }
 
     // Save subscription in DB with start and end dates

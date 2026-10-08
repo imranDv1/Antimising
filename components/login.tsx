@@ -177,7 +177,7 @@ export default function LoginPage() {
                     <FormItem>
                       <div className="flex items-center justify-between">
                         <FormLabel>password</FormLabel>
-                        <Link href="/">Forget your password</Link>
+                        <Link href="/forgot-password">Forget your password</Link>
                       </div>
                       <FormControl>
                         <Input

@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { streamNoteBody } from "@/lib/openAi";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const { userId, title } = await request.json();
 
-    if (!userId) {
-      return NextResponse.json(
-        { message: "userId is required" },
-        { status: 400 }
-      );
+    // The AI quota is always billed against the authenticated user.
+    if (userId && userId !== sessionUserId) {
+      return forbidden("You can only use your own subscription");
     }
 
     if (!title) {
@@ -22,12 +24,10 @@ export async function POST(request: Request) {
 
     // التحقق إذا كان لدى المستخدم أي اشتراك
     let hasSubs = false;
-    if (userId) {
-      const subs = await prisma.subscription.findMany({
-        where: { userId },
-      });
-      hasSubs = subs.length > 0;
-    }
+    const subs = await prisma.subscription.findMany({
+      where: { userId: sessionUserId },
+    });
+    hasSubs = subs.length > 0;
 
     if (!hasSubs) {
       return NextResponse.json(

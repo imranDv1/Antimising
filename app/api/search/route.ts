@@ -1,15 +1,22 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
+  const sessionUserId = await getSessionUserId();
+  if (!sessionUserId) return unauthorized();
+
   const { quiry, userId } = await request.json();
+  if (userId && userId !== sessionUserId) {
+    return forbidden("You can only search your own notes");
+  }
 
   const notes = await prisma.note.findMany({
     where: {
-      userId,
+      userId: sessionUserId,
       title: {
         contains: quiry,
-        mode: "insensitive", 
+        mode: "insensitive",
       },
     },
   });
@@ -20,5 +27,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ notes });
 }
-
-

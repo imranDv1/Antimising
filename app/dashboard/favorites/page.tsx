@@ -4,23 +4,20 @@ import React, { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useFavNotificationStore } from "@/context/updateFavorite";
 import NotesLoadingSkeleton from "../create/_components/NotesLoadingSkeleton ";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { NoteCard, Note } from "@/components/note-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Star, Loader2 } from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Star } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 type FavoriteNote = {
@@ -39,14 +36,29 @@ type FavoriteNote = {
   };
 };
 
+const toNote = (favorite: FavoriteNote): Note => ({
+  id: favorite.noteId,
+  createdAt: new Date(favorite.note.createdAt),
+  updatedAt: new Date(favorite.note.updatedAt),
+  userId: favorite.note.userId,
+  title: favorite.note.title,
+  description: favorite.note.description,
+  category: favorite.note.category,
+});
+
 const FavoritesPage = () => {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
+  const router = useRouter();
   const [favorites, setFavorites] = useState<FavoriteNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [favoriteLoading, setFavoriteLoading] = useState<
     Record<string, boolean>
   >({});
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
   const refreshSignal = useFavNotificationStore(
     (state) => state.refreshFavSignal
@@ -113,91 +125,98 @@ const FavoritesPage = () => {
     }
   };
 
+  const handleDeleteClick = (noteId: string) => {
+    setNoteToDelete(noteId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!noteToDelete) return;
+    setDeleteLoading(noteToDelete);
+    try {
+      const res = await fetch(`/api/create/${noteToDelete}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message || "Failed to delete note");
+      }
+      setFavorites((prev) => prev.filter((fav) => fav.noteId !== noteToDelete));
+      toast.success("Note deleted");
+      triggerFavRefresh();
+      setDeleteDialogOpen(false);
+      setNoteToDelete(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete note"
+      );
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const openNote = (noteId: string) => {
+    setOpeningNoteId(noteId);
+    router.push(`/dashboard/notes/${noteId}`);
+  };
+
+  const favoriteStatus = Object.fromEntries(
+    favorites.map((favorite) => [favorite.noteId, true])
+  );
+
   if (loading) {
     return <NotesLoadingSkeleton count={6} />;
   }
 
   return (
-    <div className="w-full min-h-screen mt-4">
-      <div className="w-full flex flex-col gap-5">
-        {/* Header */}
-        <div className="w-full flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Favorite Notes</h1>
-          <p className="text-sm text-muted-foreground">
-            {favorites.length} {favorites.length === 1 ? "note" : "notes"}
-          </p>
+    <div className="w-full flex flex-col gap-6 mt-4">
+      {/* ── Top bar (same style as My Notebooks) ───────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Favorite Notes
+          </h1>
+          <Badge
+            variant="secondary"
+            className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+          >
+            {favorites.length} note{favorites.length !== 1 ? "s" : ""}
+          </Badge>
         </div>
 
-        {/* Favorites Grid */}
+        <Link
+          href="/dashboard/create"
+          className={buttonVariants({ variant: "outline" })}
+        >
+          All notes
+        </Link>
+      </div>
+
+      {/* ── Favorites grid ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pb-10 gap-4">
         {favorites.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            {favorites.map((favorite) => (
-              <Card key={favorite.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="line-clamp-2">
-                      {favorite.note.title}
-                    </CardTitle>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="p-0 hover:cursor-pointer"
-                          disabled={favoriteLoading[favorite.noteId]}
-                          onClick={() => handleRemoveFavorite(favorite.noteId)}
-                        >
-                          {favoriteLoading[favorite.noteId] ? (
-                            <Loader2 className="animate-spin size-4" />
-                          ) : (
-                            <Star className="size-4" fill="gold" color="gold" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Remove from Favorites</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <CardDescription className="line-clamp-2">
-                    {favorite.note.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex gap-2 flex-wrap">
-                  {favorite.note.category.length > 0 ? (
-                    favorite.note.category.map((tag, index) => (
-                      <Badge
-                        variant="outline"
-                        className="p-2"
-                        key={`${favorite.noteId}-${index}`}
-                      >
-                        {tag}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      No categories
-                    </span>
-                  )}
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Link
-                    href={`/dashboard/notes/${favorite.noteId}`}
-                    className={buttonVariants()}
-                  >
-                    View Note
-                  </Link>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(favorite.createdAt).toLocaleDateString()}
-                  </div>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          favorites.map((favorite) => (
+            <NoteCard
+              key={favorite.noteId}
+              note={toNote(favorite)}
+              favoriteStatus={favoriteStatus}
+              favoriteLoading={favoriteLoading}
+              deleteLoading={deleteLoading}
+              openingNoteId={openingNoteId}
+              onFavorite={handleRemoveFavorite}
+              onDelete={handleDeleteClick}
+              onEdit={(note) => openNote(note.id)}
+              onOpen={openNote}
+              clickableTags={false}
+            />
+          ))
         ) : (
           <div className="col-span-full flex flex-col items-center justify-center p-10 min-h-[400px]">
             <Star className="size-16 text-muted-foreground mb-4 opacity-50" />
-            <p className="text-gray-400 text-lg mb-2">No favorite notes yet</p>
-            <p className="text-gray-500 text-sm text-center max-w-md">
+            <p className="text-muted-foreground text-lg mb-2">
+              No favorite notes yet
+            </p>
+            <p className="text-muted-foreground/70 text-sm text-center max-w-md">
               Start adding notes to your favorites by clicking the star icon on
               any note.
             </p>
@@ -210,6 +229,48 @@ const FavoritesPage = () => {
           </div>
         )}
       </div>
+
+      {/* ── Confirm Delete Dialog (same as all notes page) ─────────────── */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent
+          className="max-w-sm"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">
+              Delete this note?
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-muted-foreground">
+              This action cannot be undone. The note will be permanently
+              removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={deleteLoading !== null}
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteLoading !== null}
+              onClick={handleConfirmDelete}
+            >
+              {deleteLoading !== null ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Deleting…
+                </span>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

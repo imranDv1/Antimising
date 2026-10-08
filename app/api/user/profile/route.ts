@@ -2,6 +2,7 @@
 import { PrismaClient } from "@/lib/generated/prisma";
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
+import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -11,13 +12,17 @@ cloudinary.config({
 
 const prisma = new PrismaClient();
 
-// GET user profile
+// GET own user profile (self-only)
 export async function GET(req: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId");
 
     if (!userId) return NextResponse.json({ success: false, message: "Missing userId" }, { status: 400 });
+    if (userId !== sessionUserId) return forbidden("You can only view your own profile");
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -35,10 +40,12 @@ export async function GET(req: Request) {
   }
 }
 
-// POST update user profile
-// POST update user profile
+// POST update own user profile (self-only)
 export async function POST(req: Request) {
   try {
+    const sessionUserId = await getSessionUserId();
+    if (!sessionUserId) return unauthorized();
+
     const formData = await req.formData();
     const userId = formData.get("userId") as string;
     const name = formData.get("name") as string;
@@ -47,6 +54,7 @@ export async function POST(req: Request) {
     const file = formData.get("imageFile") as File;
 
     if (!userId || !name) return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+    if (userId !== sessionUserId) return forbidden("You can only update your own profile");
 
     // Fetch current user to check existing image
     const currentUser = await prisma.user.findUnique({ where: { id: userId } });

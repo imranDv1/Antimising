@@ -12,7 +12,7 @@ import DragHandle from "@tiptap/extension-drag-handle";
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from "@tiptap/starter-kit";
-import { Image } from "@tiptap/extension-image";
+import { ResizableImage } from "@/components/tiptap-node/image-node/resizable-image-extension";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Typography } from "@tiptap/extension-typography";
@@ -25,6 +25,14 @@ import { Selection } from "@tiptap/extensions";
 import { Button } from "@/components/tiptap-ui-primitive/button";
 import { buttonVariants, Button as ShadcnButton } from "@/components/ui/button";
 import { Spacer } from "@/components/tiptap-ui-primitive/spacer";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Toolbar,
   ToolbarGroup,
@@ -73,7 +81,7 @@ import { useWindowSize } from "@/hooks/use-window-size";
 import { useCursorVisibility } from "@/hooks/use-cursor-visibility";
 
 // --- Lib ---
-import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils";
+import { handleImageUpload, MAX_FILE_SIZE, sanitizeImageAttrs } from "@/lib/tiptap-utils";
 import { CornerDownLeft, Eye, Loader2, Save, Share2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -283,6 +291,7 @@ export function SimpleEditor({
     "main" | "highlighter" | "link"
   >("main");
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const toolbarRef = React.useRef<HTMLDivElement>(null);
   const triggerEditorRefresh = useEditorNotificationStore(
@@ -311,7 +320,9 @@ export function SimpleEditor({
       if (typeof content === "string")
         return convertMarkdownHeadingsToHtml(content);
       try {
-        return normalizeInlineNewlines(content as JSONContent);
+        const normalized = normalizeInlineNewlines(content as JSONContent);
+        sanitizeImageAttrs(normalized);
+        return normalized;
       } catch {
         return "";
       }
@@ -334,7 +345,7 @@ export function SimpleEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
-      Image,
+      ResizableImage,
       Typography,
       Superscript,
       Subscript,
@@ -343,8 +354,12 @@ export function SimpleEditor({
         accept: "image/*",
         maxSize: MAX_FILE_SIZE,
         limit: limit,
-        upload: async (file: File) => {
-          const { previewUrl, file: originalFile } = await handleImageUpload(file);
+        upload: async (file, onProgress, signal) => {
+          const { previewUrl, file: originalFile } = await handleImageUpload(
+            file,
+            onProgress,
+            signal
+          );
           setUploadedFiles((prev) => [...prev, originalFile]);
           return previewUrl;
         },
@@ -589,7 +604,6 @@ export function SimpleEditor({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this note? This action cannot be undone.")) return;
     setDeleteLoading(true);
     try {
       const res = await fetch(`/api/create/${noteId}`, { method: "DELETE" });
@@ -598,6 +612,8 @@ export function SimpleEditor({
         throw new Error(data?.message || "Failed to delete note");
       }
       toast.success("Note deleted");
+      setDeleteDialogOpen(false);
+      setDeleteLoading(false);
       triggerEditorRefresh();
       router.push("/dashboard/create");
     } catch (err) {
@@ -646,15 +662,11 @@ export function SimpleEditor({
                   </ShadcnButton>
                   <ShadcnButton
                     variant="outline"
-                    onClick={handleDelete}
+                    onClick={() => setDeleteDialogOpen(true)}
                     disabled={deleteLoading}
                     className="h-9 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
-                    {deleteLoading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="mr-1.5 size-4" />
-                    )}
+                    <Trash2 className="mr-1.5 size-4" />
                     Delete
                   </ShadcnButton>
                 </>
@@ -732,6 +744,48 @@ export function SimpleEditor({
           onOpenChange={setShareDialogOpen}
           onChanged={() => triggerEditorRefresh()}
         />
+
+        {/* ── Delete Note Confirmation Dialog ────────────────────────── */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent
+            className="max-w-sm"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">
+                Delete this note?
+              </DialogTitle>
+              <DialogDescription className="mt-1 text-sm text-muted-foreground">
+                This action cannot be undone. The note will be permanently
+                removed.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4 flex gap-2">
+              <ShadcnButton
+                variant="outline"
+                className="flex-1"
+                disabled={deleteLoading}
+                onClick={() => setDeleteDialogOpen(false)}
+              >
+                Cancel
+              </ShadcnButton>
+              <ShadcnButton
+                className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteLoading}
+                onClick={handleDelete}
+              >
+                {deleteLoading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Deleting…
+                  </span>
+                ) : (
+                  "Delete"
+                )}
+              </ShadcnButton>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <EditorContent
           editor={editor}

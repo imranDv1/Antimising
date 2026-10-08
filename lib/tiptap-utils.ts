@@ -4,6 +4,38 @@ import type { Editor } from "@tiptap/react"
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
+/**
+ * Parses an image size attribute (number or "300" / "300px" string).
+ * Rejects junk values like "100%", "full", "auto" → returns null.
+ */
+export function parseSizeAttr(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return Math.round(value)
+  }
+  if (typeof value !== "string") return null
+  const match = value.trim().match(/^(\d+(?:\.\d+)?)(?:px)?$/)
+  if (!match) return null
+  const parsed = Math.round(Number(match[1]))
+  return parsed > 0 ? parsed : null
+}
+
+/**
+ * Sanitizes width/height attrs on image nodes in a Tiptap JSON document (in place).
+ * Keeps only valid pixel sizes so junk values can never stretch images.
+ */
+export function sanitizeImageAttrs(node: unknown): void {
+  if (!node || typeof node !== "object") return
+  const n = node as { type?: unknown; attrs?: unknown; content?: unknown }
+  if (n.type === "image" && n.attrs && typeof n.attrs === "object") {
+    const attrs = n.attrs as Record<string, unknown>
+    attrs.width = parseSizeAttr(attrs.width)
+    attrs.height = parseSizeAttr(attrs.height)
+  }
+  if (Array.isArray(n.content)) {
+    n.content.forEach(sanitizeImageAttrs)
+  }
+}
+
 export const MAC_SYMBOLS: Record<string, string> = {
   mod: "⌘",
   command: "⌘",
@@ -299,11 +331,12 @@ export const handleImageUpload = async (
     )
   }
 
-  // simulate upload progress
-  for (let progress = 0; progress <= 100; progress += 10) {
+  // simulate smooth upload progress (real upload to server happens on save)
+  const totalSteps = 40
+  for (let step = 1; step <= totalSteps; step++) {
     if (abortSignal?.aborted) throw new Error("Upload cancelled")
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    onProgress?.({ progress })
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    onProgress?.({ progress: Math.round((step / totalSteps) * 100) })
   }
 
   return {

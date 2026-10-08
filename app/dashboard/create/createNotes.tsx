@@ -633,44 +633,49 @@ const CreateNotesPage = ({
     <div className="w-full flex flex-col gap-6 mt-4">
 
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold " >
-            My Notebooks
-          </h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          {totalCount} note{totalCount !== 1 ? "s" : ""}
-        </p>
-      </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              My Notebooks
+            </h1>
+            <Badge
+              variant="secondary"
+              className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+            >
+              {totalCount} note{totalCount !== 1 ? "s" : ""}
+            </Badge>
+          </div>
 
-      {/* Search */}
-      <div className="relative flex-1 sm:max-w-sm lg:max-w-xs">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search notes…"
-          value={searchValue}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 pr-9"
-        />
-        {searchValue && (
-          <button
-            type="button"
-            onClick={() => setSearch("")}
-            aria-label="Clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          <Button
+            onClick={openDialog}
+            className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
           >
-            <X className="size-3.5" />
-          </button>
-        )}
-      </div>
+            <FilePlus2 className="mr-1.5 size-4" /> New Note
+          </Button>
+        </div>
 
-      <Button
-        onClick={openDialog}
-        className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
-      >
-        <FilePlus2 className="mr-1.5 size-4" /> New Note
-      </Button>
+        {/* Search */}
+        <div className="relative w-full sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search notes…"
+            value={searchValue}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 pl-9 pr-9"
+          />
+          {searchValue && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Filter banner ────────────────────────────────────────────────── */}
