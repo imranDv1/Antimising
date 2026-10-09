@@ -31,6 +31,7 @@ model User {
   UserPlusInfo    UserPlusInfo?
   PasswordManeger PasswordManeger[] 
   Canvas          Canvas[]
+  CanvasShare     CanvasShare[]
   sifaloPayments  SifaloPayment[]
 
   @@unique([email])
@@ -188,9 +189,24 @@ model Canvas {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String
   title      String   @default("Untitled board")
-  contentEnc String? // AES-256-GCM encrypted tldraw snapshot
+  contentEnc String? // AES-256-GCM encrypted Excalidraw scene
+  shares     CanvasShare[] // لوحات مشتركة مع مستخدمين آخرين
   createdAt  DateTime @default(now())
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@index([userId])
+}
+
+model CanvasShare {
+  id         String   @id @default(uuid())
+  canvas     Canvas   @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+  canvasId   String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  permission String   @default("read") // "read" | "write"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@unique([canvasId, userId])
+  @@map("canvas_share")
 }

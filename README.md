@@ -13,7 +13,7 @@
 AntiMising is a modern, all-in-one workspace built with **Next.js (App Router)** and **TypeScript**. It combines three products in one clean, minimal interface:
 
 * 📝 **Notes** — rich text editor (TipTap) with formatting, images, search, favorites and sharing
-* 🎨 **Canvas** — infinite whiteboards (tldraw + Excalidraw) for visual thinking
+* 🎨 **Canvas** — infinite whiteboards (Excalidraw) for visual thinking
 * 🔑 **Passwords** — AES-encrypted password manager (stored client-side encrypted)
 
 A built-in AI assistant (NoteBuddy, powered by Google Gemini) helps you write, summarize and draft inside your notes.
@@ -23,7 +23,7 @@ A built-in AI assistant (NoteBuddy, powered by Google Gemini) helps you write, s
 ## ✨ Key Features
 
 * ✍️ Create, edit, and delete notes with rich text formatting (TipTap)
-* 🎨 Infinite canvas whiteboards (tldraw) for visual thinking
+* 🎨 Infinite canvas whiteboards (Excalidraw) for visual thinking
 * 🔑 Encrypted password manager (AES, client-side encryption)
 * 🤖 NoteBuddy — AI-powered writing assistant for summarizing and drafting
 * 🔐 Secure authentication (email/password + Google OAuth via Better Auth)
@@ -50,7 +50,7 @@ A built-in AI assistant (NoteBuddy, powered by Google Gemini) helps you write, s
 * **Next.js 15 (App Router)** + **React 19** + **TypeScript**
 * **Tailwind CSS v4** + **shadcn/ui** (Radix UI, lucide-react)
 * **TipTap** rich text editor
-* **tldraw** + **Excalidraw** canvas
+* **Excalidraw** canvas
 * **Prisma** ORM + **PostgreSQL** (Neon)
 * **Better Auth** for authentication (email + Google OAuth)
 * **Google Gemini** (AI assistant), **OpenAI** SDK

@@ -11,19 +11,40 @@ import {
   withUserScopeLock,
   PlanLimitError,
 } from "@/lib/limits";
+import type { Canvas } from "@/lib/generated/prisma";
 
-// Every board row must belong to the caller before it can be read or mutated.
-async function getOwnedCanvas(id: string, userId: string) {
-  if (!id) return { error: "id is required", status: 400 } as const;
+type BoardPermission = "owner" | "read" | "write";
+
+const boardSelect = {
+  id: true,
+  title: true,
+  updatedAt: true,
+  createdAt: true,
+} as const;
+
+// A board row plus the caller's relationship to it. "owner" means full
+// control; a share grant is either "read" (view only) or "write" (edit).
+async function getCanvasAccess(
+  id: string,
+  userId: string
+): Promise<{ error: string; status: number } | { canvas: Canvas; permission: BoardPermission }> {
+  if (!id) return { error: "id is required", status: 400 };
   const canvas = await prisma.canvas.findUnique({ where: { id } });
-  if (!canvas) return { error: "Canvas not found", status: 404 } as const;
-  if (canvas.userId !== userId)
-    return { error: "You do not own this canvas", status: 403 } as const;
-  return { canvas } as const;
+  if (!canvas) return { error: "Canvas not found", status: 404 };
+  if (canvas.userId === userId) return { canvas, permission: "owner" };
+
+  const share = await prisma.canvasShare.findUnique({
+    where: { canvasId_userId: { canvasId: id, userId } },
+    select: { permission: true },
+  });
+  if (!share)
+    return { error: "You do not have access to this canvas", status: 403 };
+
+  return { canvas, permission: share.permission as BoardPermission };
 }
 
-// GET /api/canvas        → list of the caller's boards (no content)
-// GET /api/canvas?id=... → one board with its decrypted tldraw snapshot
+// GET /api/canvas            → the caller's boards plus the ones shared with them
+// GET /api/canvas?id=...     → one board with its decrypted Excalidraw scene
 export async function GET(request: Request) {
   try {
     const sessionUserId = await getSessionUserId();
@@ -33,14 +54,14 @@ export async function GET(request: Request) {
     const id = searchParams.get("id");
 
     if (id) {
-      const owned = await getOwnedCanvas(id, sessionUserId);
-      if ("error" in owned)
-        return NextResponse.json({ message: owned.error }, { status: owned.status });
+      const access = await getCanvasAccess(id, sessionUserId);
+      if ("error" in access)
+        return NextResponse.json({ message: access.error }, { status: access.status });
 
       let document: unknown = null;
       try {
-        document = owned.canvas.contentEnc
-          ? decryptNotePayload(owned.canvas.contentEnc)
+        document = access.canvas.contentEnc
+          ? decryptNotePayload(access.canvas.contentEnc)
           : null;
       } catch {
         // Fail closed: a corrupt payload never blocks the user from opening the board.
@@ -48,20 +69,49 @@ export async function GET(request: Request) {
       }
       return NextResponse.json({
         canvas: {
-          id: owned.canvas.id,
-          title: owned.canvas.title,
-          updatedAt: owned.canvas.updatedAt,
+          id: access.canvas.id,
+          title: access.canvas.title,
+          updatedAt: access.canvas.updatedAt,
           document,
+          permission: access.permission,
         },
       });
     }
 
-    const canvases = await prisma.canvas.findMany({
-      where: { userId: sessionUserId },
-      select: { id: true, title: true, updatedAt: true, createdAt: true },
-      orderBy: { updatedAt: "desc" },
+    const [canvases, shares] = await Promise.all([
+      prisma.canvas.findMany({
+        where: { userId: sessionUserId },
+        select: boardSelect,
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.canvasShare.findMany({
+        where: { userId: sessionUserId },
+        select: {
+          permission: true,
+          createdAt: true,
+          canvas: {
+            select: {
+              ...boardSelect,
+              user: { select: { name: true, email: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    return NextResponse.json({
+      canvases: canvases.map((canvas) => ({ ...canvas, permission: "owner" })),
+      sharedCanvases: shares.map((share) => ({
+        id: share.canvas.id,
+        title: share.canvas.title,
+        updatedAt: share.canvas.updatedAt,
+        createdAt: share.canvas.createdAt,
+        permission: share.permission,
+        ownerName: share.canvas.user.name,
+        ownerEmail: share.canvas.user.email,
+      })),
     });
-    return NextResponse.json({ canvases });
   } catch (error: any) {
     console.error("Error fetching canvases:", error);
     return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
@@ -101,12 +151,15 @@ export async function POST(request: Request) {
                 ? title.trim().slice(0, 120)
                 : "Untitled board",
           },
-          select: { id: true, title: true, updatedAt: true, createdAt: true },
+          select: boardSelect,
         });
       }
     );
 
-    return NextResponse.json({ canvas }, { status: 201 });
+    return NextResponse.json(
+      { canvas: { ...canvas, permission: "owner" } },
+      { status: 201 }
+    );
   } catch (error: any) {
     if (error instanceof PlanLimitError) {
       return NextResponse.json({ message: error.message }, { status: 403 });
@@ -116,7 +169,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/canvas → rename and/or save the tldraw snapshot (autosave target)
+// PUT /api/canvas → rename and/or save the Excalidraw scene (autosave target)
 export async function PUT(request: Request) {
   try {
     const sessionUserId = await getSessionUserId();
@@ -127,12 +180,28 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: "id is required" }, { status: 400 });
     }
 
-    const owned = await getOwnedCanvas(id, sessionUserId);
-    if ("error" in owned)
-      return NextResponse.json({ message: owned.error }, { status: owned.status });
+    const access = await getCanvasAccess(id, sessionUserId);
+    if ("error" in access)
+      return NextResponse.json({ message: access.error }, { status: access.status });
+
+    // The owner may rename and rewrite; a "write" grant may only rewrite the
+    // scene; a "read" grant is refused here even if the client misbehaves.
+    const wantsRename = typeof title === "string" && title.trim().length > 0;
+    if (wantsRename && access.permission !== "owner") {
+      return NextResponse.json(
+        { message: "Only the owner can rename this board" },
+        { status: 403 }
+      );
+    }
+    if (content !== undefined && access.permission === "read") {
+      return NextResponse.json(
+        { message: "You do not have permission to edit this board" },
+        { status: 403 }
+      );
+    }
 
     const data: Record<string, unknown> = {};
-    if (typeof title === "string" && title.trim().length > 0) {
+    if (wantsRename) {
       data.title = title.trim().slice(0, 120);
     }
     if (content !== undefined) {
@@ -160,20 +229,26 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE /api/canvas?id=... → delete the caller's board
+// DELETE /api/canvas?id=... → delete the caller's board (owner only)
 export async function DELETE(request: Request) {
   try {
     const sessionUserId = await getSessionUserId();
     if (!sessionUserId) return unauthorized();
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    const id = searchParams.get("id") ?? "";
 
-    const owned = await getOwnedCanvas(id ?? "", sessionUserId);
-    if ("error" in owned)
-      return NextResponse.json({ message: owned.error }, { status: owned.status });
+    const access = await getCanvasAccess(id, sessionUserId);
+    if ("error" in access)
+      return NextResponse.json({ message: access.error }, { status: access.status });
+    if (access.permission !== "owner") {
+      return NextResponse.json(
+        { message: "Only the owner can delete this board" },
+        { status: 403 }
+      );
+    }
 
-    await prisma.canvas.delete({ where: { id: owned.canvas.id } });
+    await prisma.canvas.delete({ where: { id: access.canvas.id } });
     return NextResponse.json({ message: "Canvas deleted" });
   } catch (error: any) {
     console.error("Error deleting canvas:", error);

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
@@ -10,6 +10,7 @@ import {
   Maximize2,
   Minimize2,
   Plus,
+  Share2,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,15 +28,18 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CanvasDocument } from "@/components/canvas/tldraw-editor";
+import { ShareCanvasDialog } from "@/components/share-dialog";
+import type { CanvasDocument } from "@/components/canvas/excalidraw-editor";
 
-const TldrawEditor = dynamic(
-  () => import("@/components/canvas/tldraw-editor"),
+const ExcalidrawEditor = dynamic(
+  () => import("@/components/canvas/excalidraw-editor"),
   {
     ssr: false,
     loading: () => (
@@ -46,19 +50,27 @@ const TldrawEditor = dynamic(
   }
 );
 
+type BoardPermission = "owner" | "read" | "write";
+
 type CanvasMeta = {
   id: string;
   title: string;
   updatedAt: string;
   createdAt: string;
+  permission: BoardPermission;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
 };
 
 type SaveStatus = "saved" | "saving" | "error";
 
 export default function CanvasPage() {
   const [canvases, setCanvases] = useState<CanvasMeta[]>([]);
+  const [sharedCanvases, setSharedCanvases] = useState<CanvasMeta[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activePermission, setActivePermission] =
+    useState<BoardPermission | null>(null);
   const [activeDoc, setActiveDoc] = useState<CanvasDocument | null>(null);
   const [docLoading, setDocLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
@@ -66,10 +78,21 @@ export default function CanvasPage() {
   const [creating, setCreating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const saveSeqRef = useRef(0);
   const activeTitleRef = useRef("");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const allBoards = useMemo(
+    () => [...canvases, ...sharedCanvases],
+    [canvases, sharedCanvases]
+  );
+
+  // Only the owner can rename/delete/share; a "write" grant may edit the
+  // scene; a "read" grant opens the board in view mode.
+  const canEdit = activePermission === "owner" || activePermission === "write";
+  const canManage = activePermission === "owner";
 
   // Keep state in sync with Esc / browser exit as well as our button.
   useEffect(() => {
@@ -98,11 +121,13 @@ export default function CanvasPage() {
     setDocLoading(true);
     setActiveId(null);
     setActiveDoc(null);
+    setActivePermission(null);
     try {
       const res = await fetch(`/api/canvas?id=${id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Failed to load board");
       setActiveId(data.canvas.id);
+      setActivePermission(data.canvas.permission ?? "owner");
       setRenameValue(data.canvas.title);
       activeTitleRef.current = data.canvas.title;
       setActiveDoc(data.canvas.document ?? null);
@@ -143,17 +168,23 @@ export default function CanvasPage() {
     [selectBoard]
   );
 
-  // Initial load: fetch boards, auto-create the first one if none exist.
+  // Initial load: fetch owned + shared boards, auto-create the first one only
+  // when there is nothing at all to open.
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch("/api/canvas");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || "Failed to load boards");
-        const list: CanvasMeta[] = data.canvases ?? [];
-        setCanvases(list);
-        if (list.length > 0) {
-          await selectBoard(list[0].id);
+        const owned: CanvasMeta[] = data.canvases ?? [];
+        const shared: CanvasMeta[] = data.sharedCanvases ?? [];
+        setCanvases(owned);
+        setSharedCanvases(shared);
+
+        if (owned.length > 0) {
+          await selectBoard(owned[0].id);
+        } else if (shared.length > 0) {
+          await selectBoard(shared[0].id);
         } else {
           await createBoard(true);
         }
@@ -198,7 +229,7 @@ export default function CanvasPage() {
 
   const handleRename = useCallback(async () => {
     const title = renameValue.trim();
-    if (!activeId || !title || title === activeTitleRef.current) {
+    if (!activeId || !canManage || !title || title === activeTitleRef.current) {
       setRenameValue(activeTitleRef.current);
       return;
     }
@@ -216,7 +247,7 @@ export default function CanvasPage() {
     } catch {
       toast.error("Failed to rename board");
     }
-  }, [activeId, renameValue]);
+  }, [activeId, renameValue, canManage]);
 
   const handleDelete = useCallback(async () => {
     if (!activeId) return;
@@ -229,10 +260,12 @@ export default function CanvasPage() {
         const data = await res.json().catch(() => null);
         throw new Error(data?.message || "Failed to delete board");
       }
-      const remaining = canvases.filter((c) => c.id !== activeId);
-      setCanvases(remaining);
+      setCanvases((prev) => prev.filter((c) => c.id !== activeId));
+      setSharedCanvases((prev) => prev.filter((c) => c.id !== activeId));
       setDeleteOpen(false);
       toast.success("Board deleted");
+
+      const remaining = allBoards.filter((c) => c.id !== activeId);
       if (remaining.length > 0) {
         await selectBoard(remaining[0].id);
       } else {
@@ -245,7 +278,7 @@ export default function CanvasPage() {
     } finally {
       setDeleteLoading(false);
     }
-  }, [activeId, canvases, selectBoard, createBoard]);
+  }, [activeId, allBoards, selectBoard, createBoard]);
 
   const statusPill =
     saveStatus === "saving" ? (
@@ -262,6 +295,11 @@ export default function CanvasPage() {
       </span>
     );
 
+  const boardLabel = (canvas: CanvasMeta) =>
+    canvas.ownerName
+      ? `${canvas.title} — ${canvas.ownerName}`
+      : canvas.title;
+
   return (
     <div className="flex h-[calc(100vh-var(--header-height))] w-full flex-col gap-3 py-4">
       {/* ── Header (same style as the other pages, above the canvas) ───── */}
@@ -272,9 +310,17 @@ export default function CanvasPage() {
             variant="secondary"
             className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
           >
-            {canvases.length} board{canvases.length !== 1 ? "s" : ""}
+            {allBoards.length} board{allBoards.length !== 1 ? "s" : ""}
           </Badge>
-          {activeId && !docLoading && statusPill}
+          {activeId && !docLoading && canEdit && statusPill}
+          {activePermission === "read" && activeId && !docLoading && (
+            <Badge
+              variant="outline"
+              className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+            >
+              View only
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -316,15 +362,30 @@ export default function CanvasPage() {
             if (value && value !== activeId) selectBoard(value);
           }}
         >
-          <SelectTrigger className="w-[240px]">
+          <SelectTrigger className="w-[260px]">
             <SelectValue placeholder="Select a board" />
           </SelectTrigger>
           <SelectContent className="z-[99999]">
-            {canvases.map((canvas) => (
-              <SelectItem key={canvas.id} value={canvas.id}>
-                {canvas.title}
-              </SelectItem>
-            ))}
+            {canvases.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>My boards</SelectLabel>
+                {canvases.map((canvas) => (
+                  <SelectItem key={canvas.id} value={canvas.id}>
+                    {canvas.title}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+            {sharedCanvases.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>Shared with me</SelectLabel>
+                {sharedCanvases.map((canvas) => (
+                  <SelectItem key={canvas.id} value={canvas.id}>
+                    {boardLabel(canvas)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
 
@@ -336,19 +397,33 @@ export default function CanvasPage() {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
           placeholder="Board name"
-          disabled={!activeId || docLoading}
+          disabled={!activeId || docLoading || !canManage}
           className="max-w-xs"
         />
 
-        <Button
-          variant="outline"
-          size="icon"
-          disabled={!activeId || docLoading}
-          onClick={() => setDeleteOpen(true)}
-          aria-label="Delete board"
-        >
-          <Trash2 className="size-4 text-destructive" />
-        </Button>
+        {canManage && (
+          <Button
+            variant="outline"
+            size="icon"
+            disabled={!activeId || docLoading}
+            onClick={() => setDeleteOpen(true)}
+            aria-label="Delete board"
+          >
+            <Trash2 className="size-4 text-destructive" />
+          </Button>
+        )}
+
+        {canManage && (
+          <Button
+            variant="outline"
+            disabled={!activeId || docLoading}
+            onClick={() => setShareOpen(true)}
+            aria-label="Share board"
+          >
+            <Share2 className="size-4" />
+            Share
+          </Button>
+        )}
       </div>
 
       {/* ── Editor (fills the rest of the page, below the controls) ───── */}
@@ -366,11 +441,12 @@ export default function CanvasPage() {
             <Skeleton className="h-4 w-28" />
           </div>
         ) : activeId ? (
-          <TldrawEditor
+          <ExcalidrawEditor
             key={activeId}
             boardId={activeId}
             initialDocument={activeDoc}
             onDocumentChange={handleDocumentChange}
+            readOnly={!canEdit}
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2">
@@ -385,6 +461,15 @@ export default function CanvasPage() {
           </div>
         )}
       </div>
+
+      {/* ── Share Dialog (owner only) ─────────────────────────────────── */}
+      {activeId && canManage && (
+        <ShareCanvasDialog
+          canvasId={activeId}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+        />
+      )}
 
       {/* ── Confirm Delete Dialog (same as the other pages) ────────────── */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

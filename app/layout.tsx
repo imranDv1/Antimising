@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "password manager",
     "infinite canvas",
     "whiteboard",
-    "tldraw",
+    "excalidraw",
     "online notes",
     "secure notes",
     "AntiMising",

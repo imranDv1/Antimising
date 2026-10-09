@@ -91,7 +91,7 @@ import { toast } from "sonner";
 import { JsonValue } from "@/lib/generated/prisma/runtime/library";
 import Link from "next/link";
 import CustomButton from "@/components/CustomButton";
-import { ShareNoteDialog } from "@/components/share-note-dialog";
+import { ShareNoteDialog } from "@/components/share-dialog";
 import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
 import { convertMarkdownHeadingsToHtml } from "@/lib/converMarkdownHeading";
 

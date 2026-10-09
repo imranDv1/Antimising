@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  
+  turbopack: {
+    resolveAlias: {
+      // pica throws ERR_GET_IMAGE_DATA under browser fingerprinting
+      // protection (Brave shields, Firefox RFP), which breaks image insertion
+      // in Excalidraw. The shim swaps getImageData for drawImage/toBlob.
+      pica: "./lib/pica-shim.js",
+    },
+  },
   images: {
     remotePatterns: [
       {

@@ -48,11 +48,20 @@ type ShareEntry = {
   user: ShareUser;
 };
 
-type ShareNoteDialogProps = {
-  noteId: string;
+type ShareDialogProps = {
+  /** The note / board whose grants are being edited. */
+  entityId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged?: () => void;
+  /** Route that owns these grants, e.g. "/api/share". */
+  endpoint: string;
+  /** Query/body key that route expects for `entityId`, e.g. "noteId". */
+  idParam: string;
+  /** Dialog title and primary button label, e.g. "Share note". */
+  title: string;
+  /** Entity noun used in toasts and copy, e.g. "Note". */
+  noun: string;
 };
 
 const initials = (name: string) =>
@@ -75,12 +84,16 @@ async function parseError(res: Response, fallback: string) {
 
 // ─── Component ────────────────────────────────────────────────────────────
 
-export function ShareNoteDialog({
-  noteId,
+export function ShareDialog({
+  entityId,
   open,
   onOpenChange,
   onChanged,
-}: ShareNoteDialogProps) {
+  endpoint,
+  idParam,
+  title,
+  noun,
+}: ShareDialogProps) {
   const [shares, setShares] = React.useState<ShareEntry[]>([]);
   const [loadingShares, setLoadingShares] = React.useState(false);
 
@@ -99,7 +112,11 @@ export function ShareNoteDialog({
 
   const searchSeq = React.useRef(0);
 
-  // Load the people list whenever the dialog opens for a note
+  const lower = noun.toLowerCase();
+  const queryParam = (key: string, value: string) =>
+    `${endpoint}?${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+
+  // Load the people list whenever the dialog opens for an entity
   React.useEffect(() => {
     if (!open) return;
 
@@ -112,7 +129,7 @@ export function ShareNoteDialog({
     setSearchStatus("idle");
     setShares([]);
 
-    fetch(`/api/share?noteId=${encodeURIComponent(noteId)}`)
+    fetch(queryParam(idParam, entityId))
       .then(async (res) => {
         if (!res.ok) throw new Error(await parseError(res, "Failed to load shares"));
         return res.json();
@@ -130,7 +147,8 @@ export function ShareNoteDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, noteId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, entityId, endpoint, idParam]);
 
   // Debounced email search
   React.useEffect(() => {
@@ -174,9 +192,8 @@ export function ShareNoteDialog({
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [query, noteId]);
+  }, [query]);
 
-  // keep a ref so the debounce closure never reads a stale shares list
   const selectUser = (user: ShareUser) => {
     setSelected(user);
     setResults([]);
@@ -188,16 +205,16 @@ export function ShareNoteDialog({
     if (!selected) return;
     setSharing(true);
     try {
-      const res = await fetch("/api/share", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          noteId,
+          [idParam]: entityId,
           userId: selected.id,
           permission,
         }),
       });
-      if (!res.ok) throw new Error(await parseError(res, "Failed to share note"));
+      if (!res.ok) throw new Error(await parseError(res, `Failed to share ${lower}`));
       const data = await res.json();
       const share: ShareEntry = data.share;
 
@@ -207,7 +224,7 @@ export function ShareNoteDialog({
           ? prev.map((s) => (s.user.id === selected.id ? share : s))
           : [...prev, share];
       });
-      toast.success(`Note shared with ${selected.name}`);
+      toast.success(`${noun} shared with ${selected.name}`);
       setSelected(null);
       setPermission("read");
       onChanged?.();
@@ -221,10 +238,10 @@ export function ShareNoteDialog({
   const handlePermissionChange = async (entry: ShareEntry, value: "read" | "write") => {
     setUpdating((p) => ({ ...p, [entry.user.id]: true }));
     try {
-      const res = await fetch("/api/share", {
+      const res = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ noteId, userId: entry.user.id, permission: value }),
+        body: JSON.stringify({ [idParam]: entityId, userId: entry.user.id, permission: value }),
       });
       if (!res.ok) throw new Error(await parseError(res, "Failed to update permission"));
       const data = await res.json();
@@ -245,7 +262,7 @@ export function ShareNoteDialog({
     setRemoving((p) => ({ ...p, [entry.user.id]: true }));
     try {
       const res = await fetch(
-        `/api/share?noteId=${encodeURIComponent(noteId)}&userId=${encodeURIComponent(entry.user.id)}`,
+        `${queryParam(idParam, entityId)}&userId=${encodeURIComponent(entry.user.id)}`,
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error(await parseError(res, "Failed to remove access"));
@@ -277,10 +294,10 @@ export function ShareNoteDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
             <Share2 className="size-4 text-primary" />
-            Share note
+            {title}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Choose who can access this note and what they can do.
+            Choose who can access this {lower} and what they can do.
           </DialogDescription>
         </DialogHeader>
 
@@ -388,8 +405,8 @@ export function ShareNoteDialog({
                 </p>
                 {(
                   [
-                    { value: "read" as const, label: "Can view", hint: "Can read this note but cannot make changes." },
-                    { value: "write" as const, label: "Can edit", hint: "Can read and modify this note." },
+                    { value: "read" as const, label: "Can view", hint: `Can read this ${lower} but cannot make changes.` },
+                    { value: "write" as const, label: "Can edit", hint: `Can read and modify this ${lower}.` },
                   ]
                 ).map((opt) => (
                   <button
@@ -446,7 +463,7 @@ export function ShareNoteDialog({
               </div>
             ) : shares.length === 0 ? (
               <p className="px-1 py-1 text-sm text-muted-foreground">
-                No one has access to this note yet.
+                No one has access to this {lower} yet.
               </p>
             ) : (
               <ul className="space-y-1.5">
@@ -528,12 +545,54 @@ export function ShareNoteDialog({
               </span>
             ) : (
               <>
-                <Share2 className="mr-1.5 size-4" /> Share note
+                <Share2 className="mr-1.5 size-4" /> {title}
               </>
             )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function ShareNoteDialog({
+  noteId,
+  ...rest
+}: {
+  noteId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onChanged?: () => void;
+}) {
+  return (
+    <ShareDialog
+      {...rest}
+      entityId={noteId}
+      endpoint="/api/share"
+      idParam="noteId"
+      title="Share note"
+      noun="Note"
+    />
+  );
+}
+
+export function ShareCanvasDialog({
+  canvasId,
+  ...rest
+}: {
+  canvasId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onChanged?: () => void;
+}) {
+  return (
+    <ShareDialog
+      {...rest}
+      entityId={canvasId}
+      endpoint="/api/canvas/share"
+      idParam="canvasId"
+      title="Share board"
+      noun="Board"
+    />
   );
 }
