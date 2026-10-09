@@ -26,6 +26,7 @@ type NotesPayload = {
   totalCount: number;
   page: number;
   limit: number;
+  noteLimit: number | null;
   hasMore: boolean;
 };
 
@@ -35,6 +36,7 @@ const Page = () => {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [noteLimit, setNoteLimit] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -72,6 +74,7 @@ const Page = () => {
           return Array.from(merged.values());
         });
         setTotalCount(data.totalCount ?? 0);
+        setNoteLimit(data.noteLimit ?? null);
         setHasMore(data.hasMore ?? false);
         pageRef.current = page;
       } catch (err) {
@@ -102,6 +105,7 @@ const Page = () => {
     <CreateNotes
       notes={notes}
       totalCount={totalCount}
+      noteLimit={noteLimit}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}

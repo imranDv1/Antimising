@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getPlanLimits } from "@/lib/limits";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -37,7 +38,8 @@ export async function GET(request: Request) {
   try {
     // 🧾 ملاحظاتي (المملوكة) — المفضلة تظهر أولاً، كل صفحة تُجلب عند التمرير
     // 🔗 الملاحظات المشتركة معي تُجلب كاملة في أول طلب (تعتمد على orderBy fav first)
-    const [ownedNotes, totalCount, sharedRows] = await Promise.all([
+    const [limits, ownedNotes, totalCount, sharedRows] = await Promise.all([
+      getPlanLimits(userId),
       prisma.note.findMany({
         where: { userId },
         orderBy: [
@@ -94,6 +96,7 @@ export async function GET(request: Request) {
       totalCount,
       page,
       limit,
+      noteLimit: limits.noteLimit,
       hasMore: skip + ownedNotes.length < totalCount,
     });
   } catch (error) {

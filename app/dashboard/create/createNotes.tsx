@@ -57,6 +57,7 @@ const UNSAVED_MESSAGE =
 type CreateNotesProps = {
   notes: Note[];
   totalCount?: number;
+  noteLimit?: number | null;
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -267,7 +268,13 @@ const NoteFormFields = ({
 );
 
 // ─── Empty State ───────────────────────────────────────────────────────────────
-const EmptyState = ({ onOpen }: { onOpen: () => void }) => (
+const EmptyState = ({
+  onOpen,
+  disabled = false,
+}: {
+  onOpen: () => void;
+  disabled?: boolean;
+}) => (
   <div className="col-span-full flex flex-col items-center justify-center gap-4 py-20">
     <div className="relative">
       <div className="absolute -left-1 -top-1 size-20 rotate-3 rounded-lg border border-border bg-muted/70" />
@@ -283,6 +290,7 @@ const EmptyState = ({ onOpen }: { onOpen: () => void }) => (
     </div>
     <Button
       onClick={onOpen}
+      disabled={disabled}
       className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
     >
       <FilePlus2 className="mr-1.5 size-4" /> Create your first note
@@ -294,6 +302,7 @@ const EmptyState = ({ onOpen }: { onOpen: () => void }) => (
 const CreateNotesPage = ({
   notes,
   totalCount = notes.length,
+  noteLimit = null,
   hasMore = false,
   loadingMore = false,
   onLoadMore,
@@ -320,6 +329,18 @@ const CreateNotesPage = ({
   const maxTags = 3;
   const { data: session } = authClient.useSession();
   const userId = session?.user.id;
+
+  const atNoteLimit = noteLimit !== null && totalCount >= noteLimit;
+
+  const handleOpenCreate = () => {
+    if (atNoteLimit) {
+      toast.error(
+        `You've reached the free plan limit of ${noteLimit} notes. Upgrade to Pro for unlimited notes.`
+      );
+      return;
+    }
+    openDialog();
+  };
 
   const triggerRefresh = useNoteNotificationStore((s) => s.triggerRefresh);
   const triggerFavRefresh = useFavNotificationStore((s) => s.triggerFavRefresh);
@@ -648,7 +669,13 @@ const CreateNotesPage = ({
           </div>
 
           <Button
-            onClick={openDialog}
+            onClick={handleOpenCreate}
+            disabled={atNoteLimit}
+            title={
+              atNoteLimit
+                ? `Free plan is limited to ${noteLimit} notes. Upgrade to Pro for unlimited notes.`
+                : undefined
+            }
             className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
           >
             <FilePlus2 className="mr-1.5 size-4" /> New Note
@@ -723,7 +750,7 @@ const CreateNotesPage = ({
       {/* ── Notes grid ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pb-10 gap-4">
         {displayedNotes.length === 0 && !isFiltered ? (
-          <EmptyState onOpen={openDialog} />
+          <EmptyState onOpen={handleOpenCreate} disabled={atNoteLimit} />
         ) : displayedNotes.length === 0 && isFiltered ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-foreground">

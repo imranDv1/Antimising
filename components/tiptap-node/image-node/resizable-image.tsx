@@ -109,6 +109,30 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     if (img && img.complete) measure()
   }, [measure, src])
 
+  // Auto-fit oversized images: once the natural size is known, shrink any
+  // image that has no explicit size and is wider than the editor's content
+  // area down to the available width (height keeps the aspect ratio). The
+  // stored crop box clips anything the image would otherwise spill.
+  React.useEffect(() => {
+    if (!natural) return
+    // Never mutate the document in a read-only viewer.
+    if (!editor.isEditable) return
+    // Respect an explicit user resize / saved size.
+    if (width !== null || height !== null) return
+
+    const root = editor.view.dom as HTMLElement
+    const styles = window.getComputedStyle(root)
+    const padding =
+      parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight)
+    const available = root.clientWidth - padding
+    if (!Number.isFinite(available) || available <= MIN_SIZE) return
+    if (natural.w <= available) return
+
+    const fitW = Math.round(available)
+    const fitH = Math.round(fitW / (natural.w / natural.h))
+    updateAttributes({ width: fitW, height: fitH })
+  }, [natural, width, height, editor, updateAttributes])
+
   const getContentWidth = (): number => {
     const root = editor.view.dom as HTMLElement
     const styles = window.getComputedStyle(root)
@@ -295,7 +319,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     return (
       <NodeViewWrapper
         className="tiptap-image-node"
-        style={{ width: "fit-content" }}
+        style={{ width: "fit-content", maxWidth: "100%", overflow: "hidden" }}
       >
         <img
           ref={imgRef}
@@ -304,7 +328,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
           title={node.attrs.title ?? undefined}
           width={width ?? undefined}
           height={height ?? undefined}
-          style={fallbackStyle}
+          style={{ ...fallbackStyle, maxWidth: "100%", height: "auto" }}
           onLoad={measure}
           draggable={false}
         />

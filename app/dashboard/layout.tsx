@@ -17,9 +17,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       }
     >
       <AppSidebar variant="sidebar" />
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-x-hidden">
         <SiteHeader />
-        <div className="w-full px-4">
+        <div className="w-full min-w-0 px-4">
           <DialogProvider>{children}</DialogProvider>
 
           <Toaster

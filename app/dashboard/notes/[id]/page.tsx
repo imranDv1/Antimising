@@ -167,8 +167,8 @@ const Page = (props: { params: Promise<tParams> }) => {
   }
 
   return (
-    <div className="">
-      <div className=" h-max flex items-center justify-center">
+    <div className="w-full min-w-0">
+      <div className=" h-max flex min-w-0 items-center justify-center">
         <SimpleEditor
           noteId={params.id}
           content={isThereContent ? notebody.content : undefined}

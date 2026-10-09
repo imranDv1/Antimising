@@ -624,7 +624,7 @@ export function SimpleEditor({
 
   // Fix 10: cleaned up redundant whitespace in className strings below
   return (
-    <div className="w-full flex flex-col items-center mt-4 gap-4">
+    <div className="w-full min-w-0 flex flex-col items-center mt-4 gap-4">
       <div className="w-full flex lg:flex-row flex-col justify-end gap-4 items-center">
         <div className="w-full lg:w-max flex justify-end">
           {content ? (
@@ -790,7 +790,7 @@ export function SimpleEditor({
         <EditorContent
           editor={editor}
           role="presentation"
-          className="w-full mt-2"
+          className="w-full min-w-0 mt-2"
         />
       </EditorContext.Provider>
     </div>
