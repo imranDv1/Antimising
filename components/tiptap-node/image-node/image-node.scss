@@ -81,6 +81,201 @@
     }
   }
 
+  // Non-destructive crop: the image lives inside a clipped, aspect-ratio box
+  // and is offset/scaled so that only the stored crop rect is visible.
+  .tiptap-image-crop {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    border-radius: var(--tt-radius-xs, 0.25rem);
+
+    img {
+      position: absolute;
+      height: auto;
+      max-width: none;
+      display: block;
+    }
+  }
+
+  .tiptap-image-crop-button {
+    position: absolute;
+    top: -2.4rem;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    border: none;
+    border-radius: 0.5rem;
+    background-color: rgb(24 24 27 / 0.92);
+    color: #fff;
+    cursor: pointer;
+    z-index: 50;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
+    &:hover {
+      background-color: var(--primary);
+    }
+  }
+
+  // Crop editing surface. Must NOT clip or create a stacking context, so the
+  // edge handles and toolbar can extend past the image and paint above the
+  // sticky editor toolbar. Only the dimming mask is clipped (inner layer).
+  .tiptap-image-crop-edit {
+    position: relative;
+    width: 100%;
+    touch-action: none;
+    user-select: none;
+    border-radius: var(--tt-radius-xs, 0.25rem);
+
+    .tiptap-image-crop-source {
+      position: relative;
+      z-index: 0;
+      width: 100%;
+      height: auto;
+      max-width: none;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+  }
+
+  // Clips the oversized box-shadow dimming mask to the image bounds.
+  .tiptap-image-crop-clip {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: var(--tt-radius-xs, 0.25rem);
+    pointer-events: none;
+  }
+
+  .tiptap-image-crop-mask {
+    position: absolute;
+    box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45);
+  }
+
+  // Sits above the image (z-index) with a high-contrast edge so the crop
+  // border is always visible and easy to grab.
+  .tiptap-image-crop-rect {
+    position: absolute;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.65);
+    outline: 0.12rem solid #fff;
+    outline-offset: -0.06rem;
+    cursor: move;
+    touch-action: none;
+    z-index: 40;
+  }
+
+  .tiptap-image-crop-handle {
+    position: absolute;
+    width: 0.7rem;
+    height: 0.7rem;
+    background-color: #fff;
+    border: 0.12rem solid var(--primary);
+    border-radius: 2px;
+    z-index: 41;
+    touch-action: none;
+
+    &--nw {
+      top: 0;
+      left: 0;
+      transform: translate(-50%, -50%);
+      cursor: nwse-resize;
+    }
+
+    &--n {
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      cursor: ns-resize;
+    }
+
+    &--ne {
+      top: 0;
+      right: 0;
+      transform: translate(50%, -50%);
+      cursor: nesw-resize;
+    }
+
+    &--e {
+      top: 50%;
+      right: 0;
+      transform: translate(50%, -50%);
+      cursor: ew-resize;
+    }
+
+    &--se {
+      bottom: 0;
+      right: 0;
+      transform: translate(50%, 50%);
+      cursor: nwse-resize;
+    }
+
+    &--s {
+      bottom: 0;
+      left: 50%;
+      transform: translate(-50%, 50%);
+      cursor: ns-resize;
+    }
+
+    &--sw {
+      bottom: 0;
+      left: 0;
+      transform: translate(-50%, 50%);
+      cursor: nesw-resize;
+    }
+
+    &--w {
+      top: 50%;
+      left: 0;
+      transform: translate(-50%, -50%);
+      cursor: ew-resize;
+    }
+  }
+
+  .tiptap-image-crop-toolbar {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    display: flex;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border-radius: 0.5rem;
+    background-color: rgb(24 24 27 / 0.92);
+    z-index: 50;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.6rem;
+      height: 1.6rem;
+      padding: 0;
+      border: none;
+      border-radius: 0.375rem;
+      background-color: transparent;
+      color: #fff;
+      cursor: pointer;
+
+      svg {
+        width: 1rem;
+        height: 1rem;
+      }
+
+      &:hover {
+        background-color: rgb(255 255 255 / 0.16);
+      }
+    }
+  }
+
   // Thread image handling
   .tiptap-thread:has(> img) {
     margin: 2rem 0;

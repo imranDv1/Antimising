@@ -20,8 +20,19 @@ export function parseSizeAttr(value: unknown): number | null {
 }
 
 /**
- * Sanitizes width/height attrs on image nodes in a Tiptap JSON document (in place).
- * Keeps only valid pixel sizes so junk values can never stretch images.
+ * Parses a crop attribute. Crops are stored as fractions (0..1) of the
+ * image's natural size, so any value is clamped into that range.
+ */
+export function parseCropAttr(value: unknown, fallback = 0): number {
+  const n = typeof value === "string" ? Number(value) : value
+  if (typeof n !== "number" || !Number.isFinite(n)) return fallback
+  return Math.min(1, Math.max(0, n))
+}
+
+/**
+ * Sanitizes width/height/crop attrs on image nodes in a Tiptap JSON document
+ * (in place). Keeps only valid pixel sizes and a valid, in-bounds crop rect so
+ * junk values can never stretch or blank out an image.
  */
 export function sanitizeImageAttrs(node: unknown): void {
   if (!node || typeof node !== "object") return
@@ -30,6 +41,33 @@ export function sanitizeImageAttrs(node: unknown): void {
     const attrs = n.attrs as Record<string, unknown>
     attrs.width = parseSizeAttr(attrs.width)
     attrs.height = parseSizeAttr(attrs.height)
+
+    let x = parseCropAttr(attrs.cropX, 0)
+    let y = parseCropAttr(attrs.cropY, 0)
+    let w = parseCropAttr(attrs.cropWidth, 1)
+    let h = parseCropAttr(attrs.cropHeight, 1)
+
+    if (w <= 0) w = 1
+    if (h <= 0) h = 1
+    if (x + w > 1) {
+      w = 1 - x
+      if (w < 0.05) {
+        w = 0.05
+        x = 1 - w
+      }
+    }
+    if (y + h > 1) {
+      h = 1 - y
+      if (h < 0.05) {
+        h = 0.05
+        y = 1 - h
+      }
+    }
+
+    attrs.cropX = x
+    attrs.cropY = y
+    attrs.cropWidth = w
+    attrs.cropHeight = h
   }
   if (Array.isArray(n.content)) {
     n.content.forEach(sanitizeImageAttrs)

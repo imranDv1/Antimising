@@ -1,0 +1,26 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index f2774e92bb6ed118a924c34a43a02c4be77abb3e..270293c95b24f53b389b8558485f3dac71e7e0b5 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs	
+@@ -94,7 +94,7 @@ var findElementNextToCoords = (options) => {
+       };
+     }
+   }
+-  const candidateNode = editor.state.doc.nodeAt(candidatePos - 1);
++  const candidateNode = candidatePos > 0 ? editor.state.doc.nodeAt(candidatePos - 1) : null;
+   return { resultElement: finalCandidate, resultNode: candidateNode, pos: candidatePos };
+ };
+ 
+diff --git a/dist/index.js b/dist/index.js
+index 65ee56e455acb617d0a18bffe3adc8a8018f8df8..78f299e3ec74700030c865d97967cfd6da31575a 100644
+--- a/dist/index.js
++++ b/dist/index.js	
+@@ -68,7 +68,7 @@ var findElementNextToCoords = (options) => {
+       };
+     }
+   }
+-  const candidateNode = editor.state.doc.nodeAt(candidatePos - 1);
++  const candidateNode = candidatePos > 0 ? editor.state.doc.nodeAt(candidatePos - 1) : null;
+   return { resultElement: finalCandidate, resultNode: candidateNode, pos: candidatePos };
+ };
+ 

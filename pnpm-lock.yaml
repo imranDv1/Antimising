@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@tiptap/extension-drag-handle@3.6.1':
+    hash: d94b06200529058b305d7fc631619da5f0a50ea3f174019c1700064dbbfd9e40
+    path: patches/@tiptap__extension-drag-handle@3.6.1.patch
+
 importers:
 
   .:
@@ -103,7 +108,7 @@ importers:
         version: 3.5.3(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))
       '@tiptap/extension-drag-handle':
         specifier: ^3.6.1
-        version: 3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/extension-collaboration@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))(yjs@13.6.27))(@tiptap/extension-node-range@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))
+        version: 3.6.1(patch_hash=d94b06200529058b305d7fc631619da5f0a50ea3f174019c1700064dbbfd9e40)(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/extension-collaboration@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))(yjs@13.6.27))(@tiptap/extension-node-range@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))
       '@tiptap/extension-font-family':
         specifier: ^3.5.3
         version: 3.5.3(@tiptap/extension-text-style@3.5.3(@tiptap/core@3.5.3(@tiptap/pm@3.6.1)))
@@ -10316,7 +10321,7 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.5.3(@tiptap/pm@3.6.1)
 
-  '@tiptap/extension-drag-handle@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/extension-collaboration@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))(yjs@13.6.27))(@tiptap/extension-node-range@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))':
+  '@tiptap/extension-drag-handle@3.6.1(patch_hash=d94b06200529058b305d7fc631619da5f0a50ea3f174019c1700064dbbfd9e40)(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/extension-collaboration@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))(yjs@13.6.27))(@tiptap/extension-node-range@3.6.1(@tiptap/core@3.5.3(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1))(@tiptap/pm@3.6.1)(@tiptap/y-tiptap@3.0.0(prosemirror-model@1.25.3)(prosemirror-state@1.4.3)(prosemirror-view@1.41.1)(y-protocols@1.0.6(yjs@13.6.27))(yjs@13.6.27))':
     dependencies:
       '@floating-ui/dom': 1.7.4
       '@tiptap/core': 3.5.3(@tiptap/pm@3.6.1)
