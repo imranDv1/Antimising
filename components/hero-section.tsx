@@ -12,6 +12,7 @@ import type { Variants } from "motion/react";
 
 import { BorderBeam } from "./ui/border-beam";
 import { authClient } from "@/lib/auth-client";
+import { Badge } from "./ui/badge";
 
 // Variants for AnimatedGroup items
 const itemVariants: Variants = {
@@ -128,26 +129,7 @@ export default function HeroSection(): React.ReactElement {
                     },
                   }}
                 >
-                  <Link
-                    href="/"
-                    className="hover:bg-background dark:hover:border-t-border bg-background group mx-auto flex w-fit items-center gap-4  border p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 dark:border-t-white/5 dark:shadow-zinc-950"
-                  >
-                    <span className="text-foreground text-sm">
-                      Introducing the infinite Canvas whiteboard
-                    </span>
-                    <span className="dark:border-background block h-4 w-0.5 border-l bg-white dark:bg-zinc-700"></span>
-
-                    <div className="bg-background group-hover:bg-muted size-6 overflow-hidden  duration-500">
-                      <div className="flex w-12 -translate-x-1/2 duration-500 ease-in-out group-hover:translate-x-0">
-                        <span className="flex size-6">
-                          <ArrowRight className="m-auto size-3" />
-                        </span>
-                        <span className="flex size-6">
-                          <ArrowRight className="m-auto size-3" />
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
+                  <Badge variant="outline"> <ChevronRight/> Introducing the infinite Canvas whiteboard</Badge>
                 </AnimatedGroup>
 
                 <TextEffect

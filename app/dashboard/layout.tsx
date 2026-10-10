@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <AppSidebar variant="sidebar" />
       <SidebarInset>
         <SiteHeader />
-        <div className="w-full px-4">
+        <div className="w-full min-w-0 px-4">
           <DialogProvider>{children}</DialogProvider>
 
           <Toaster

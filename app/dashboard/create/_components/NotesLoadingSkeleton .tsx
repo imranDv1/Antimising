@@ -31,7 +31,7 @@ const NotesLoadingSkeleton = ({ count = 6 }: { count?: number }) => (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <Skeleton className="h-8 w-44" />
-          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-5 w-16 " />
         </div>
         <Skeleton className="h-10 w-32" />
       </div>

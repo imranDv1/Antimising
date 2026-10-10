@@ -11,9 +11,12 @@ import {
   Minimize2,
   Plus,
   Share2,
+  Star,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth-client";
+import { useFavNotificationStore } from "@/context/updateFavorite";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,8 +46,12 @@ const ExcalidrawEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-card">
+        <div
+          className="absolute inset-0 bg-[radial-gradient(circle,rgba(0,0,0,0.07)_1px,transparent_1.5px)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.09)_1px,transparent_1.5px)]"
+          style={{ backgroundSize: "26px 26px" }}
+        />
+        <Loader2 className="relative size-6 animate-spin text-muted-foreground" />
       </div>
     ),
   }
@@ -64,7 +71,53 @@ type CanvasMeta = {
 
 type SaveStatus = "saved" | "saving" | "error";
 
+// Mirrors the Excalidraw UI (floating top toolbar + dot-grid canvas + bottom
+// controls) so the loading state doesn't flash a generic layout.
+function CanvasBoardSkeleton() {
+  return (
+    <div className="flex h-full w-full flex-col bg-card">
+      {/* Top floating toolbar */}
+      <div className="flex justify-center pt-3">
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-background p-1.5 shadow-sm">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="size-8 rounded-lg" />
+          ))}
+        </div>
+      </div>
+
+      {/* Canvas area with Excalidraw-style dot grid */}
+      <div className="relative mx-4 mb-3 mt-4 min-h-0 flex-1 overflow-hidden rounded-lg border border-border/60">
+        <div
+          className="absolute inset-0 bg-[radial-gradient(circle,rgba(0,0,0,0.07)_1px,transparent_1.5px)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.09)_1px,transparent_1.5px)]"
+          style={{ backgroundSize: "26px 26px" }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex w-80 max-w-[calc(100%-3rem)] flex-col gap-3 rounded-xl border border-border/70 bg-background/70 p-5 shadow-md backdrop-blur-sm">
+            <Skeleton className="h-4 w-1/2 rounded" />
+            <Skeleton className="h-4 w-full rounded" />
+            <Skeleton className="h-4 w-2/3 rounded" />
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom zoom/controls */}
+      <div className="flex justify-center gap-3 pb-4">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1 shadow-sm">
+          <Skeleton className="size-6 rounded" />
+          <Skeleton className="h-6 w-14 rounded" />
+          <Skeleton className="size-6 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CanvasPage() {
+  const { data: session } = authClient.useSession();
+  const userId = session?.user?.id;
+  const triggerFavRefresh = useFavNotificationStore(
+    (state) => state.triggerFavRefresh
+  );
   const [canvases, setCanvases] = useState<CanvasMeta[]>([]);
   const [sharedCanvases, setSharedCanvases] = useState<CanvasMeta[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -79,6 +132,8 @@ export default function CanvasPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favLoading, setFavLoading] = useState(false);
   const saveSeqRef = useRef(0);
   const activeTitleRef = useRef("");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -141,6 +196,66 @@ export default function CanvasPage() {
     }
   }, []);
 
+  // Load which of the caller's boards are favorited (for the star button).
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/favorite-canvas?userId=${userId}`, {
+          cache: "no-cache",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active) {
+          setFavoriteIds(
+            (data ?? []).map(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (f: any) => f.canvasId
+            )
+          );
+        }
+      } catch {
+        // Favorites are non-critical; ignore failures here.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const isFavorite = activeId ? favoriteIds.includes(activeId) : false;
+
+  const toggleFavorite = useCallback(async () => {
+    if (!userId || !activeId) return;
+    setFavLoading(true);
+    const wasFav = favoriteIds.includes(activeId);
+    try {
+      const res = await fetch("/api/favorite-canvas", {
+        method: wasFav ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, canvasId: activeId }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || "Request failed");
+      }
+      setFavoriteIds((prev) =>
+        wasFav
+          ? prev.filter((id) => id !== activeId)
+          : [...prev, activeId]
+      );
+      triggerFavRefresh();
+      toast.success(wasFav ? "Removed from favorites" : "Added to favorites");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update favorite"
+      );
+    } finally {
+      setFavLoading(false);
+    }
+  }, [userId, activeId, favoriteIds, triggerFavRefresh]);
+
   const createBoard = useCallback(
     async (selectAfter = true) => {
       setCreating(true);
@@ -181,7 +296,19 @@ export default function CanvasPage() {
         setCanvases(owned);
         setSharedCanvases(shared);
 
-        if (owned.length > 0) {
+        // Deep link support: /dashboard/canvas?board=<id> opens that board.
+        const boardParam = new URLSearchParams(window.location.search).get(
+          "board"
+        );
+        const requested =
+          boardParam &&
+          [...owned, ...shared].some((c) => c.id === boardParam)
+            ? boardParam
+            : null;
+
+        if (requested) {
+          await selectBoard(requested);
+        } else if (owned.length > 0) {
           await selectBoard(owned[0].id);
         } else if (shared.length > 0) {
           await selectBoard(shared[0].id);
@@ -324,6 +451,26 @@ export default function CanvasPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {activeId && !docLoading && (
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={favLoading}
+              onClick={toggleFavorite}
+              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              {favLoading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Star
+                  className="size-4"
+                  fill={isFavorite ? "#FBBF24" : "none"}
+                  color="#F59E0B"
+                />
+              )}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             onClick={toggleFullscreen}
@@ -436,10 +583,7 @@ export default function CanvasPage() {
         )}
       >
         {listLoading || docLoading ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-            <Skeleton className="h-8 w-44" />
-            <Skeleton className="h-4 w-28" />
-          </div>
+          <CanvasBoardSkeleton />
         ) : activeId ? (
           <ExcalidrawEditor
             key={activeId}
@@ -459,6 +603,20 @@ export default function CanvasPage() {
               <Plus className="size-4" /> Create a board
             </Button>
           </div>
+        )}
+
+        {/* Floating exit button so full mode is easy to leave even though the
+            page header (with the toggle) is hidden in browser fullscreen */}
+        {isFullscreen && (
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label="Hide full mode"
+            className="absolute bottom-20 left-20 z-[10000] flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-background/90 px-3.5 py-2 text-xs font-medium text-foreground shadow-md backdrop-blur transition-colors hover:bg-muted sm:left-auto sm:right-26 sm:top-4 sm:bottom-auto sm:translate-x-0"
+          >
+            <Minimize2 className="size-4" />
+            Hide full mode
+          </button>
         )}
       </div>
 

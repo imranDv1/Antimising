@@ -5,6 +5,7 @@ import { authClient } from "@/lib/auth-client";
 import { useFavNotificationStore } from "@/context/updateFavorite";
 import NotesLoadingSkeleton from "../create/_components/NotesLoadingSkeleton ";
 import { NoteCard, Note } from "@/components/note-card";
+import { CanvasCard, CanvasMeta } from "@/components/canvas-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -36,6 +37,23 @@ type FavoriteNote = {
   };
 };
 
+type FavoriteCanvas = {
+  id: string;
+  userId: string;
+  canvasId: string;
+  createdAt: string;
+  permission?: "owner" | "read" | "write";
+  canvas: {
+    id: string;
+    title: string;
+    userId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+type DeleteTarget = { type: "note" | "canvas"; id: string } | null;
+
 const toNote = (favorite: FavoriteNote): Note => ({
   id: favorite.noteId,
   createdAt: new Date(favorite.note.createdAt),
@@ -46,19 +64,29 @@ const toNote = (favorite: FavoriteNote): Note => ({
   category: favorite.note.category,
 });
 
+const toCanvas = (favorite: FavoriteCanvas): CanvasMeta => ({
+  id: favorite.canvasId,
+  title: favorite.canvas.title,
+  userId: favorite.canvas.userId,
+  createdAt: favorite.canvas.createdAt,
+  updatedAt: favorite.canvas.updatedAt,
+  permission: favorite.permission ?? "owner",
+});
+
 const FavoritesPage = () => {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
   const router = useRouter();
-  const [favorites, setFavorites] = useState<FavoriteNote[]>([]);
+  const [notes, setNotes] = useState<FavoriteNote[]>([]);
+  const [canvases, setCanvases] = useState<FavoriteCanvas[]>([]);
   const [loading, setLoading] = useState(true);
   const [favoriteLoading, setFavoriteLoading] = useState<
     Record<string, boolean>
   >({});
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
-  const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
 
   const refreshSignal = useFavNotificationStore(
     (state) => state.refreshFavSignal
@@ -74,16 +102,24 @@ const FavoritesPage = () => {
     const fetchFavorites = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/favorite?userId=${userId}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-cache",
-        });
+        const [notesRes, canvasesRes] = await Promise.all([
+          fetch(`/api/favorite?userId=${userId}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-cache",
+          }),
+          fetch(`/api/favorite-canvas?userId=${userId}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-cache",
+          }),
+        ]);
 
-        if (!res.ok) throw new Error("Failed to fetch favorites");
+        if (!notesRes.ok) throw new Error("Failed to fetch favorite notes");
+        if (!canvasesRes.ok) throw new Error("Failed to fetch favorite boards");
 
-        const data = await res.json();
-        setFavorites(data);
+        setNotes(await notesRes.json());
+        setCanvases(await canvasesRes.json());
       } catch (err) {
         console.error("Error fetching favorites:", err);
         const errorMessage =
@@ -97,7 +133,7 @@ const FavoritesPage = () => {
     fetchFavorites();
   }, [userId, refreshSignal]);
 
-  const handleRemoveFavorite = async (noteId: string) => {
+  const handleRemoveNoteFavorite = async (noteId: string) => {
     if (!userId) return;
 
     setFavoriteLoading((prev) => ({ ...prev, [noteId]: true }));
@@ -112,8 +148,7 @@ const FavoritesPage = () => {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Request failed");
 
-      // Remove from local state
-      setFavorites((prev) => prev.filter((fav) => fav.noteId !== noteId));
+      setNotes((prev) => prev.filter((fav) => fav.noteId !== noteId));
       toast.success("Removed from favorites!");
       triggerFavRefresh();
     } catch (err) {
@@ -125,30 +160,69 @@ const FavoritesPage = () => {
     }
   };
 
-  const handleDeleteClick = (noteId: string) => {
-    setNoteToDelete(noteId);
+  const handleRemoveCanvasFavorite = async (canvasId: string) => {
+    if (!userId) return;
+
+    setFavoriteLoading((prev) => ({ ...prev, [canvasId]: true }));
+
+    try {
+      const res = await fetch("/api/favorite-canvas", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, canvasId }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Request failed");
+
+      setCanvases((prev) => prev.filter((fav) => fav.canvasId !== canvasId));
+      toast.success("Removed from favorites!");
+      triggerFavRefresh();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to remove favorite";
+      toast.error(errorMessage);
+    } finally {
+      setFavoriteLoading((prev) => ({ ...prev, [canvasId]: false }));
+    }
+  };
+
+  const handleDeleteClick = (type: "note" | "canvas", id: string) => {
+    setDeleteTarget({ type, id });
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!noteToDelete) return;
-    setDeleteLoading(noteToDelete);
+    if (!deleteTarget) return;
+    const { type, id } = deleteTarget;
+    setDeleteLoading(id);
     try {
-      const res = await fetch(`/api/create/${noteToDelete}`, {
-        method: "DELETE",
-      });
+      const res =
+        type === "note"
+          ? await fetch(`/api/create/${id}`, { method: "DELETE" })
+          : await fetch(`/api/canvas?id=${id}`, { method: "DELETE" });
+
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Failed to delete note");
+        throw new Error(
+          data?.message || data?.error || `Failed to delete ${type}`
+        );
       }
-      setFavorites((prev) => prev.filter((fav) => fav.noteId !== noteToDelete));
-      toast.success("Note deleted");
+
+      if (type === "note") {
+        setNotes((prev) => prev.filter((fav) => fav.noteId !== id));
+        toast.success("Note deleted");
+      } else {
+        setCanvases((prev) => prev.filter((fav) => fav.canvasId !== id));
+        toast.success("Board deleted");
+      }
+
       triggerFavRefresh();
       setDeleteDialogOpen(false);
-      setNoteToDelete(null);
+      setDeleteTarget(null);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to delete note"
+        err instanceof Error ? err.message : `Failed to delete ${type}`
       );
     } finally {
       setDeleteLoading(null);
@@ -156,13 +230,24 @@ const FavoritesPage = () => {
   };
 
   const openNote = (noteId: string) => {
-    setOpeningNoteId(noteId);
+    setOpeningId(noteId);
     router.push(`/dashboard/notes/${noteId}`);
   };
 
-  const favoriteStatus = Object.fromEntries(
-    favorites.map((favorite) => [favorite.noteId, true])
+  const openCanvas = (canvasId: string) => {
+    setOpeningId(canvasId);
+    router.push(`/dashboard/canvas?board=${canvasId}`);
+  };
+
+  const noteFavoriteStatus = Object.fromEntries(
+    notes.map((favorite) => [favorite.noteId, true])
   );
+
+  const canvasFavoriteStatus = Object.fromEntries(
+    canvases.map((favorite) => [favorite.canvasId, true])
+  );
+
+  const totalCount = notes.length + canvases.length;
 
   if (loading) {
     return <NotesLoadingSkeleton count={6} />;
@@ -173,59 +258,90 @@ const FavoritesPage = () => {
       {/* ── Top bar (same style as My Notebooks) ───────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Favorite Notes
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Favorites</h1>
           <Badge
             variant="secondary"
             className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
           >
-            {favorites.length} note{favorites.length !== 1 ? "s" : ""}
+            {notes.length} note{notes.length !== 1 ? "s" : ""} · {canvases.length}{" "}
+            board{canvases.length !== 1 ? "s" : ""}
           </Badge>
         </div>
 
-        <Link
-          href="/dashboard/create"
-          className={buttonVariants({ variant: "outline" })}
-        >
-          All notes
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/create"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            All notes
+          </Link>
+          <Link
+            href="/dashboard/canvas"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Canvas
+          </Link>
+        </div>
       </div>
 
       {/* ── Favorites grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pb-10 gap-4">
-        {favorites.length > 0 ? (
-          favorites.map((favorite) => (
-            <NoteCard
-              key={favorite.noteId}
-              note={toNote(favorite)}
-              favoriteStatus={favoriteStatus}
-              favoriteLoading={favoriteLoading}
-              deleteLoading={deleteLoading}
-              openingNoteId={openingNoteId}
-              onFavorite={handleRemoveFavorite}
-              onDelete={handleDeleteClick}
-              onEdit={(note) => openNote(note.id)}
-              onOpen={openNote}
-              clickableTags={false}
-            />
-          ))
+        {totalCount > 0 ? (
+          <>
+            {notes.map((favorite) => (
+              <NoteCard
+                key={favorite.noteId}
+                note={toNote(favorite)}
+                favoriteStatus={noteFavoriteStatus}
+                favoriteLoading={favoriteLoading}
+                deleteLoading={deleteLoading}
+                openingNoteId={openingId}
+                onFavorite={handleRemoveNoteFavorite}
+                onDelete={(noteId) => handleDeleteClick("note", noteId)}
+                onEdit={(note) => openNote(note.id)}
+                onOpen={openNote}
+                clickableTags={false}
+              />
+            ))}
+
+            {canvases.map((favorite) => (
+              <CanvasCard
+                key={favorite.canvasId}
+                canvas={toCanvas(favorite)}
+                favoriteStatus={canvasFavoriteStatus}
+                favoriteLoading={favoriteLoading}
+                deleteLoading={deleteLoading}
+                openingCanvasId={openingId}
+                onFavorite={handleRemoveCanvasFavorite}
+                onDelete={(canvasId) => handleDeleteClick("canvas", canvasId)}
+                onOpen={openCanvas}
+              />
+            ))}
+          </>
         ) : (
           <div className="col-span-full flex flex-col items-center justify-center p-10 min-h-[400px]">
             <Star className="size-16 text-muted-foreground mb-4 opacity-50" />
             <p className="text-muted-foreground text-lg mb-2">
-              No favorite notes yet
+              No favorites yet
             </p>
             <p className="text-muted-foreground/70 text-sm text-center max-w-md">
-              Start adding notes to your favorites by clicking the star icon on
-              any note.
+              Favorite notes or canvas boards by clicking the star icon to find
+              them here quickly.
             </p>
-            <Link
-              href="/dashboard/create"
-              className={buttonVariants({ className: "mt-4" })}
-            >
-              Go to Notes
-            </Link>
+            <div className="flex gap-2 mt-4">
+              <Link
+                href="/dashboard/create"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Go to Notes
+              </Link>
+              <Link
+                href="/dashboard/canvas"
+                className={buttonVariants()}
+              >
+                Go to Canvas
+              </Link>
+            </div>
           </div>
         )}
       </div>
@@ -238,11 +354,12 @@ const FavoritesPage = () => {
         >
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
-              Delete this note?
+              Delete this {deleteTarget?.type === "canvas" ? "board" : "note"}?
             </DialogTitle>
             <DialogDescription className="mt-1 text-sm text-muted-foreground">
-              This action cannot be undone. The note will be permanently
-              removed.
+              This action cannot be undone. The{" "}
+              {deleteTarget?.type === "canvas" ? "board" : "note"} will be
+              permanently removed.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2">

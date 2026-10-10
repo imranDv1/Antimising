@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Note, NoteCard, sortFavoritesFirst } from "@/components/note-card";
 import { authClient } from "@/lib/auth-client";
 import { useSharedStore } from "@/context/sharedStore";
+import { useFavoritesOnTop } from "@/context/notesPrefsStore";
+import { useFavoritesCacheStore } from "@/context/favoritesCacheStore";
 import { useRouter } from "next/navigation";
 import NotesLoadingSkeleton from "../create/_components/NotesLoadingSkeleton ";
 import { Users } from "lucide-react";
@@ -19,19 +21,24 @@ const Page = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
-  const [favoriteStatus, setFavoriteStatus] = useState<Record<string, boolean>>({});
+  const favoriteStatus = useFavoritesCacheStore((s) => s.status);
   const [favoriteLoading, setFavoriteLoading] = useState<Record<string, boolean>>({});
+  const [favoritesOnTop] = useFavoritesOnTop();
 
   const refreshSharedSignal = useSharedStore((s) => s.refreshSharedSignal);
 
   const loadFavorites = useCallback(async () => {
     if (!userId) return;
+    // Use the cached flags when available so favorites stay pinned to the top
+    // instantly; only fetch when this user has no cache yet.
+    const cached = useFavoritesCacheStore.getState();
+    if (cached.userId === userId) return;
     try {
       const res = await fetch(`/api/favorite?userId=${userId}`, { cache: "no-cache" });
       const favs = (await res.json()) as any[];
       const map: Record<string, boolean> = {};
       (favs || []).forEach((f: any) => (map[f.noteId] = true));
-      setFavoriteStatus(map);
+      useFavoritesCacheStore.getState().setStatus(userId, map);
     } catch (err) {
       console.error(err);
     }
@@ -72,7 +79,7 @@ const Page = () => {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Request failed");
-      setFavoriteStatus((p) => ({ ...p, [noteId]: !isFav }));
+      useFavoritesCacheStore.getState().toggle(noteId, !isFav);
       toast.success(isFav ? "Removed from favorites" : "Added to favorites");
     } catch (err: any) {
       toast.error(err.message);
@@ -116,7 +123,14 @@ const Page = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 pb-10 sm:grid-cols-2 lg:grid-cols-3">
-          {sortFavoritesFirst(notes, favoriteStatus).map((note) => (
+          {(favoritesOnTop
+                  ? sortFavoritesFirst(notes, favoriteStatus)
+                  : [...notes].sort(
+                      (a, b) =>
+                        new Date(b.createdAt).getTime() -
+                        new Date(a.createdAt).getTime()
+                    )
+                ).map((note) => (
             <NoteCard
               key={note.id}
               note={note}

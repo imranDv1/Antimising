@@ -65,6 +65,8 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
   )
   const [cropping, setCropping] = React.useState(false)
   const [crop, setCrop] = React.useState<Rect | null>(null)
+  const [liveWidth, setLiveWidth] = React.useState<number | null>(null)
+  const liveWidthRef = React.useRef<number | null>(null)
 
   const src = node.attrs.src as string
 
@@ -114,7 +116,20 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     const styles = window.getComputedStyle(root)
     const padding =
       parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight)
-    return Math.max(MIN_SIZE, root.clientWidth - padding)
+    let available = root.clientWidth - padding
+
+    // The image may live inside a narrower block (list item, blockquote…).
+    // Measure that containing block too so the image can never grow past it.
+    const container = boxRef.current?.parentElement?.parentElement
+    if (container && container !== root) {
+      const containerStyles = window.getComputedStyle(container)
+      const containerPadding =
+        parseFloat(containerStyles.paddingLeft) +
+        parseFloat(containerStyles.paddingRight)
+      available = Math.min(available, container.clientWidth - containerPadding)
+    }
+
+    return Math.max(MIN_SIZE, available)
   }
 
   const handleResizeDown =
@@ -156,7 +171,8 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     const nextW = Math.round(
       clamp(drag.startW + delta, MIN_SIZE, drag.maxW)
     )
-    box.style.width = `${nextW}px`
+    liveWidthRef.current = nextW
+    setLiveWidth(nextW)
   }
 
   const handleResizeUp = (event: React.PointerEvent<HTMLSpanElement>) => {
@@ -174,8 +190,10 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     setActiveResize(null)
 
     const nextW = Math.round(
-      clamp(parseFloat(box.style.width) || drag.startW, MIN_SIZE, drag.maxW)
+      clamp(liveWidthRef.current ?? drag.startW, MIN_SIZE, drag.maxW)
     )
+    liveWidthRef.current = null
+    setLiveWidth(null)
     updateAttributes({
       width: nextW,
       height: Math.round(nextW / drag.aspect),
@@ -321,7 +339,10 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
   return (
     <NodeViewWrapper
       className="tiptap-image-node"
-      style={{ width: `${cropping ? fullWidth : displayWidth}px`, maxWidth: "100%" }}
+      style={{
+        width: `${liveWidth ?? (cropping ? fullWidth : displayWidth)}px`,
+        maxWidth: "100%",
+      }}
     >
       {cropping ? (
         <div

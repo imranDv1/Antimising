@@ -3,6 +3,7 @@
 
 import * as React from "react";
 import {
+  Editor,
   EditorContent,
   EditorContext,
   useEditor,
@@ -269,6 +270,67 @@ const textPartToBlocksHtml = (text: string) =>
     )
     .join("");
 
+/**
+ * Isolated character counter + plan-limit enforcement.
+ * Keeping this work in its own component means typing or pasting a long note
+ * never re-renders the whole editor, and the count/enforcement is throttled so
+ * the document isn't rescanned on every keystroke.
+ */
+const CharacterCount = ({
+  editor,
+  maxChars,
+}: {
+  editor: Editor | null;
+  maxChars: number;
+}) => {
+  const [count, setCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!editor) return;
+
+    const THROTTLE_MS = 150;
+    let timer: number | undefined;
+    let lastRun = 0;
+
+    const sync = () => {
+      timer = undefined;
+      lastRun = Date.now();
+
+      const textLength = editor.getText().length;
+      setCount((prev) => (prev === textLength ? prev : textLength));
+
+      if (textLength > maxChars) {
+        editor.chain().deleteRange({ from: maxChars, to: textLength }).run();
+        toast.error(`Maximum content length is ${maxChars} characters!`);
+      }
+    };
+
+    // Immediate first pass so the counter is correct on load.
+    sync();
+
+    const schedule = () => {
+      if (timer !== undefined) return;
+      const wait = Math.max(0, THROTTLE_MS - (Date.now() - lastRun));
+      timer = window.setTimeout(sync, wait);
+    };
+
+    editor.on("update", schedule);
+
+    return () => {
+      editor.off("update", schedule);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [editor, maxChars]);
+
+  return (
+    <span
+      className={`text-sm ${count > maxChars ? "text-red-500" : "text-primary"}`}
+    >
+      {count}/{maxChars}
+    </span>
+  );
+};
+
 type EditorProps = {
   noteId: string;
   content?: JsonValue;
@@ -302,7 +364,6 @@ export function SimpleEditor({
     !content ||
       (typeof content === "object" && Object.keys(content).length === 0)
   );
-  const [charCount, setCharCount] = React.useState(0);
   const [saveLoading, setSaveLoading] = React.useState(false); // Fix 4: renamed SaveLoading → saveLoading (camelCase convention)
 
   const canEdit = role !== "read";
@@ -375,27 +436,6 @@ export function SimpleEditor({
       }),
     ],
   });
-
-  // Fix 5: checkMaxContent now correctly uses editor.chain() instead of
-  // transaction.deleteRange() which doesn't exist on a TipTap transaction object.
-  // Also added MAX_CHARS to the dependency array.
-  React.useEffect(() => {
-    if (!editor) return;
-
-    const checkMaxContent = () => {
-      const textLength = editor.getText().length;
-      if (textLength > MAX_CHARS) {
-        editor.chain().deleteRange({ from: MAX_CHARS, to: textLength }).run();
-        toast.error(`Maximum content length is ${MAX_CHARS} characters!`);
-      }
-    };
-
-    editor.on("update", checkMaxContent);
-
-    return () => {
-      editor.off("update", checkMaxContent);
-    };
-  }, [editor, MAX_CHARS]); // Fix 6: added MAX_CHARS to deps
 
   // Listen for insert requests from the AI dialog and insert at cursor
   React.useEffect(() => {
@@ -541,22 +581,6 @@ export function SimpleEditor({
     overlayHeight: toolbarRef.current?.getBoundingClientRect().height ?? 0,
   });
 
-  // Fix 7: Added MAX_CHARS to charCount effect deps (referenced inside but was missing)
-  React.useEffect(() => {
-    if (!editor) return;
-
-    const updateCharCount = () => {
-      setCharCount(editor.getText().length);
-    };
-
-    editor.on("transaction", updateCharCount);
-    updateCharCount();
-
-    return () => {
-      editor.off("transaction", updateCharCount);
-    };
-  }, [editor, MAX_CHARS]);
-
   React.useEffect(() => {
     if (!isMobile && mobileView !== "main") setMobileView("main");
   }, [isMobile, mobileView]);
@@ -624,7 +648,7 @@ export function SimpleEditor({
 
   // Fix 10: cleaned up redundant whitespace in className strings below
   return (
-    <div className="w-full flex flex-col items-center mt-4 gap-4">
+    <div className="w-full min-w-0 flex flex-col items-center mt-4 gap-4">
       <div className="w-full flex lg:flex-row flex-col justify-end gap-4 items-center">
         <div className="w-full lg:w-max flex justify-end">
           {content ? (
@@ -684,13 +708,7 @@ export function SimpleEditor({
 
         {edit && canEdit && (
           <div className="w-full flex items-center justify-end gap-4">
-            <span
-              className={`text-sm ${
-                charCount > MAX_CHARS ? "text-red-500" : "text-primary"
-              }`}
-            >
-              {charCount}/{MAX_CHARS}
-            </span>
+            <CharacterCount editor={editor} maxChars={MAX_CHARS} />
 
             {/* AI assistant button */}
             {/* <CustomButton /> */}
@@ -790,7 +808,7 @@ export function SimpleEditor({
         <EditorContent
           editor={editor}
           role="presentation"
-          className="w-full mt-2"
+          className="w-full min-w-0 mt-2"
         />
       </EditorContext.Provider>
     </div>

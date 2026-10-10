@@ -18,7 +18,7 @@ export type PlanLimits = {
 
 export const FREE_PLAN: PlanLimits = {
   isPro: false,
-  maxChars: 3000,
+  maxChars: 10000,
   noteLimit: 10,
   imagesPerNote: 3,
   passwordLimit: 10,
@@ -27,7 +27,7 @@ export const FREE_PLAN: PlanLimits = {
 
 export const PRO_PLAN: PlanLimits = {
   isPro: true,
-  maxChars: 10000,
+  maxChars: 50000,
   noteLimit: null,
   imagesPerNote: 10,
   passwordLimit: null,

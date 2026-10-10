@@ -26,6 +26,7 @@ model User {
   accounts        Account[]
   Note            Note[]
   FavoriteNote    FavoriteNote[]
+  FavoriteCanvas  FavoriteCanvas[]
   NoteShare       NoteShare[]
   subscription    Subscription?
   UserPlusInfo    UserPlusInfo?
@@ -191,10 +192,23 @@ model Canvas {
   title      String   @default("Untitled board")
   contentEnc String? // AES-256-GCM encrypted Excalidraw scene
   shares     CanvasShare[] // لوحات مشتركة مع مستخدمين آخرين
+  favorites  FavoriteCanvas[] // relation to favorite boards
   createdAt  DateTime @default(now())
   updatedAt  DateTime @default(now()) @updatedAt
 
   @@index([userId])
+}
+
+model FavoriteCanvas {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  canvas    Canvas   @relation(fields: [canvasId], references: [id], onDelete: Cascade)
+  canvasId  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, canvasId]) // منع تكرار نفس اللوحة كمفضلة لنفس المستخدم
+  @@map("favorite_canvas")
 }
 
 model CanvasShare {

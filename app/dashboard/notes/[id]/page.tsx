@@ -20,7 +20,7 @@ const Page = (props: { params: Promise<tParams> }) => {
     "owner",
   );
   const [isFetched, setIsFetched] = useState(false);
-  const [MAX_CHARS, setMaxChars] = useState<number>(3000); // default limit
+  const [MAX_CHARS, setMaxChars] = useState<number>(10000); // default limit
   const [limit, setMaxlimit] = useState<number>(3); // default limit
   const [error, setUIerror] = useState("");
   const [retrySignal, setRetrySignal] = useState(0);
@@ -76,11 +76,11 @@ const Page = (props: { params: Promise<tParams> }) => {
         if (!res.ok) throw new Error("Failed to fetch MAX_CHARS");
 
         const data = await res.json();
-        setMaxChars(data.MAX_CHARS || 3000);
+        setMaxChars(data.MAX_CHARS || 10000);
         setMaxlimit(data.limit || 3);
       } catch (err) {
         console.error(err);
-        setMaxChars(3000); // fallback if error
+        setMaxChars(10000); // fallback if error
         setMaxlimit(3);
       }
     };
@@ -167,8 +167,8 @@ const Page = (props: { params: Promise<tParams> }) => {
   }
 
   return (
-    <div className="">
-      <div className=" h-max flex items-center justify-center">
+    <div className="w-full min-w-0">
+      <div className="w-full h-max flex items-center justify-center">
         <SimpleEditor
           noteId={params.id}
           content={isThereContent ? notebody.content : undefined}

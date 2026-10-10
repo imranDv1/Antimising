@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FilePlus2, Loader2, Search, X, BookOpen, ArrowLeft } from "lucide-react";
+import { FilePlus2, Loader2, Search, X, BookOpen, ArrowLeft, ListChecks, Trash2, Check } from "lucide-react";
 import {
   Note,
   NoteCard,
@@ -38,6 +38,8 @@ import { useRouter } from "next/navigation";
 import { useDialog } from "@/context/CreateDialogContext";
 import { useNoteNotificationStore } from "@/context/notesUpateStore";
 import { useFavNotificationStore } from "@/context/updateFavorite";
+import { useFavoritesCacheStore } from "@/context/favoritesCacheStore";
+import { useFavoritesOnTop } from "@/context/notesPrefsStore";
 import { CreateNote } from "./action";
 
 // ─── Constants & Types ────────────────────────────────────────────────────────
@@ -69,20 +71,22 @@ const ConfirmDeleteDialog = ({
   onClose,
   onConfirm,
   loading = false,
+  count = 1,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   loading?: boolean;
+  count?: number;
 }) => (
   <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-sm" onOpenAutoFocus={(e) => e.preventDefault()}>
           <DialogHeader>
         <DialogTitle className="text-lg font-semibold ">
-          Delete this note?
+          Delete {count > 1 ? `${count} notes?` : "this note?"}
         </DialogTitle>
         <DialogDescription className="mt-1 text-sm text-muted-foreground">
-          This action cannot be undone. The note will be permanently removed.
+          This action cannot be undone. The note{count > 1 ? "s" : ""} will be permanently removed.
         </DialogDescription>
       </DialogHeader>
       <DialogFooter className="flex gap-2 mt-4">
@@ -304,17 +308,23 @@ const CreateNotesPage = ({
   const [loading, setLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<string[] | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // ── Multi-select ─────────────────────────────────────────────────────────
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
   const [searchValue, setSearch] = useState("");
-  const [favoriteStatus, setFavoriteStatus] = useState<Record<string, boolean>>({});
+  const favoriteStatus = useFavoritesCacheStore((s) => s.status);
   const [favoriteLoading, setFavoriteLoading] = useState<Record<string, boolean>>({});
   const [searchResults, setSearchResults] = useState<Note[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [categorysearchResults, setcategorySearchResults] = useState<Note[]>([]);
   const [hasCategorySearched, setHasCategorySearched] = useState(false);
   const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
+  const [favoritesOnTop] = useFavoritesOnTop();
 
   const { isDialogOpen, openDialog, closeDialog } = useDialog();
   const maxTags = 3;
@@ -454,25 +464,68 @@ const CreateNotesPage = ({
   // ── Delete ─────────────────────────────────────────────────────────────────
 
   const handleDeleteClick = (noteId: string) => {
-    setNoteToDelete(noteId);
+    setDeleteTargets([noteId]);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteClick = () => {
+    if (selectedIds.length === 0) return;
+    setDeleteTargets(selectedIds);
     setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!noteToDelete) return;
-    setDeleteLoading(noteToDelete);
+    if (!deleteTargets || deleteTargets.length === 0) return;
+    const single = deleteTargets.length === 1;
+    setBulkDeleting(true);
+    if (single) setDeleteLoading(deleteTargets[0]);
     try {
-      const res = await fetch(`/api/create/${noteToDelete}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete note");
-      toast.success("Note deleted");
+      const res = await fetch("/api/create/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: deleteTargets }),
+      });
+      if (!res.ok) throw new Error("Failed to delete notes");
+      toast.success(
+        single
+          ? "Note deleted"
+          : `${deleteTargets.length} notes deleted`
+      );
+      if (!single) {
+        setSelectedIds([]);
+        setSelectionMode(false);
+      }
       triggerRefresh();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
       setDeleteLoading(null);
+      setBulkDeleting(false);
       setDeleteDialogOpen(false);
-      setNoteToDelete(null);
+      setDeleteTargets(null);
     }
+  };
+
+  const toggleSelect = useCallback((noteId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(noteId)
+        ? prev.filter((id) => id !== noteId)
+        : [...prev, noteId]
+    );
+  }, []);
+
+  const toggleSelectAll = (visibleIds: string[]) => {
+    const allSelected = visibleIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((prev) =>
+      allSelected
+        ? prev.filter((id) => !visibleIds.includes(id))
+        : Array.from(new Set([...prev, ...visibleIds]))
+    );
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds([]);
   };
 
   // ── Favorites ──────────────────────────────────────────────────────────────
@@ -489,7 +542,7 @@ const CreateNotesPage = ({
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Request failed");
-      setFavoriteStatus((p) => ({ ...p, [noteId]: !isFav }));
+      useFavoritesCacheStore.getState().toggle(noteId, !isFav);
       toast.success(isFav ? "Removed from favorites" : "Added to favorites");
       triggerFavRefresh();
       triggerRefresh();
@@ -502,12 +555,16 @@ const CreateNotesPage = ({
 
   useEffect(() => {
     if (!userId) return;
+    // Show cached favorites instantly (keeps favorites pinned to the top with
+    // no reorder flash); only hit the network when this user has no cache yet.
+    const cached = useFavoritesCacheStore.getState();
+    if (cached.userId === userId) return;
     fetch(`/api/favorite?userId=${userId}`)
       .then((r) => r.json())
       .then((favs: any[]) => {
         const map: Record<string, boolean> = {};
         favs.forEach((f) => (map[f.noteId] = true));
-        setFavoriteStatus(map);
+        useFavoritesCacheStore.getState().setStatus(userId, map);
       })
       .catch(console.error);
   }, [userId]);
@@ -607,7 +664,12 @@ const CreateNotesPage = ({
     ? categorysearchResults
     : notes;
 
-  const displayedNotes = sortFavoritesFirst(baseDisplayedNotes, favoriteStatus);
+  const displayedNotes = favoritesOnTop
+    ? sortFavoritesFirst(baseDisplayedNotes, favoriteStatus)
+    : [...baseDisplayedNotes].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
   const isFiltered = hasSearched || hasCategorySearched;
 
@@ -641,18 +703,55 @@ const CreateNotesPage = ({
             </h1>
             <Badge
               variant="secondary"
-              className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+              className=" px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
             >
               {totalCount} note{totalCount !== 1 ? "s" : ""}
             </Badge>
           </div>
 
-          <Button
-            onClick={openDialog}
-            className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
-          >
-            <FilePlus2 className="mr-1.5 size-4" /> New Note
-          </Button>
+          {!selectionMode ? (
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setSelectionMode(true)}
+                className="shrink-0"
+              >
+                <ListChecks className="mr-1.5 size-4" /> Select
+              </Button>
+              <Button
+                onClick={openDialog}
+                className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+              >
+                <FilePlus2 className="mr-1.5 size-4" /> New Note
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => toggleSelectAll(displayedNotes.map((n) => n.id))}
+                className="shrink-0"
+              >
+                <Check className="mr-1.5 size-4" /> Select all
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={selectedIds.length === 0}
+                onClick={handleBulkDeleteClick}
+                className="shrink-0"
+              >
+                <Trash2 className="mr-1.5 size-4" />
+                Delete ({selectedIds.length})
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={exitSelectionMode}
+                className="shrink-0 text-muted-foreground"
+              >
+                <X className="mr-1.5 size-4" /> Cancel
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Search */}
@@ -756,6 +855,9 @@ const CreateNotesPage = ({
               onTagClick={handleCategorySearch}
               onOpen={handleOpenNote}
               clickableTags={!isFiltered}
+              selectionMode={selectionMode}
+              selected={selectedIds.includes(note.id)}
+              onToggleSelect={toggleSelect}
             />
           ))
         )}
@@ -871,7 +973,8 @@ const CreateNotesPage = ({
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleConfirmDelete}
-        loading={deleteLoading !== null}
+        loading={deleteLoading !== null || bulkDeleting}
+        count={deleteTargets?.length ?? 1}
       />
     </div>
   );

@@ -17,7 +17,7 @@ import { cn } from "@/lib/tiptap-utils";
 
 const FREE_FEATURES = [
   "Up to 10 notes",
-  "3,000 characters per note",
+  "10,000 characters per note",
   "Up to 3 images per note",
   "Up to 10 saved passwords",
   "Up to 3 canvas boards",
@@ -32,7 +32,7 @@ const FREE_FEATURES = [
 const PRO_FEATURES = [
   "Everything in Free plan",
   "Unlimited notes",
-  "10,000 characters per note",
+  "50,000 characters per note",
   "Up to 10 images per note",
   "Unlimited password manager entries",
   "Unlimited canvas boards",
