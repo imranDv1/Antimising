@@ -707,7 +707,7 @@ const CreateNotesPage = ({
             >
               {totalCount} note{totalCount !== 1 ? "s" : ""}
             </Badge>
-          </div>
+          </div> 
 
           {!selectionMode ? (
             <div className="flex items-center gap-3">
