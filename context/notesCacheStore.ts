@@ -7,6 +7,7 @@ export interface NotesSnapshot {
   totalCount: number;
   hasMore: boolean;
   page: number;
+  noteLimit: number | null;
 }
 
 interface NotesCacheState extends NotesSnapshot {
@@ -15,7 +16,7 @@ interface NotesCacheState extends NotesSnapshot {
 }
 
 function emptySnapshot(): NotesSnapshot {
-  return { notes: [], totalCount: 0, hasMore: false, page: 1 };
+  return { notes: [], totalCount: 0, hasMore: false, page: 1, noteLimit: null };
 }
 
 // Module-level cache so the All Notes list survives client-side navigation

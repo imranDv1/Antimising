@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     });
     const userIdFromSession = session?.user?.id;
 
-    const { noteId, userId } = await request.json();
+    const { noteId, userId, metaOnly } = await request.json();
 
     if (!userId) {
       return NextResponse.json(
@@ -68,6 +68,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // تمريرة خفيفة (metaOnly): بدون فك تشفير المحتوى — تُستخدم للتحقق من أن
+    // الملاحظة لم تتغير قبل الاعتماد على الكاش في العميل.
+    if (metaOnly) {
+      return NextResponse.json({
+        success: true,
+        metaOnly: true,
+        updatedAt: note.updatedAt,
+        permission,
+        noteTitle: note.title,
+      });
+    }
+
     const notebody = await prisma.noteBody.findUnique({
       where: { noteId },
     });
@@ -91,6 +103,7 @@ export async function POST(request: Request) {
       shareCount: note._count.shares,
       ownerName: note.user.name,
       ownerEmail: note.user.email,
+      updatedAt: note.updatedAt,
     });
   } catch (error) {
     console.error("Error fetching note body:", error);

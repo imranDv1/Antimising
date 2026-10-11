@@ -43,11 +43,12 @@ export async function POST(request: Request) {
         password: decryptedPassword,
         description: item.description,
         category: item.category,
+        createdAt: item.createdAt.toISOString(),
       };
     });
 
     return NextResponse.json(response, { status: 200 });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 }

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 import * as React from "react";
 import { authClient } from "@/lib/auth-client";
+import { useNoteBodyCacheStore } from "@/context/noteBodyCacheStore";
 
 export function SiteHeader() {
   const fullpath = usePathname();
@@ -15,23 +16,36 @@ export function SiteHeader() {
 
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
+  const cachedTitle = useNoteBodyCacheStore(
+    (s) => {
+      const match = fullpath.match(/\/dashboard\/notes\/([^\/]+)/);
+      const noteId = match?.[1];
+      return noteId ? s.cache[noteId]?.noteTitle : null;
+    },
+  );
   const [noteTitle, setNoteTitle] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // If we are at /dashboard/notes/[id], fetch note title
+    setNoteTitle(cachedTitle ?? null);
+  }, [cachedTitle]);
+
+  React.useEffect(() => {
+    // If we are at /dashboard/notes/[id], fetch note title (cheap, no decrypt)
     const match = fullpath.match(/\/dashboard\/notes\/([^\/]+)/);
     const noteId = match?.[1];
     if (!noteId || !userId) {
       setNoteTitle(null);
       return;
     }
+    // موجود في الكاش — لا داعي لأي طلب
+    if (useNoteBodyCacheStore.getState().cache[noteId]) return;
     let aborted = false;
     (async () => {
       try {
         const res = await fetch("/api/notebody", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, noteId }),
+          body: JSON.stringify({ userId, noteId, metaOnly: true }),
         });
         const data = await res.json();
         if (!aborted && data?.success) {

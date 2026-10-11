@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { useFavNotificationStore } from "@/context/updateFavorite";
+import { useFavoritesCacheStore } from "@/context/favoritesCacheStore";
+import type {
+  FavoriteNote,
+  FavoriteCanvas,
+} from "@/context/favoritesCacheStore";
 import NotesLoadingSkeleton from "../create/_components/NotesLoadingSkeleton ";
 import { NoteCard, Note } from "@/components/note-card";
 import { CanvasCard, CanvasMeta } from "@/components/canvas-card";
@@ -21,36 +26,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-type FavoriteNote = {
-  id: string;
-  userId: string;
-  noteId: string;
-  createdAt: Date;
-  note: {
-    id: string;
-    title: string;
-    description: string;
-    category: string[];
-    createdAt: Date;
-    updatedAt: Date;
-    userId: string;
-  };
-};
-
-type FavoriteCanvas = {
-  id: string;
-  userId: string;
-  canvasId: string;
-  createdAt: string;
-  permission?: "owner" | "read" | "write";
-  canvas: {
-    id: string;
-    title: string;
-    userId: string;
-    createdAt: string;
-    updatedAt: string;
-  };
-};
+// 🧠 الكاش يعتبر "طازجًا" خلال 60 ثوانٍ — لا جلب عند الرجوع لهذه الصفحة
+const TTL_MS = 60_000;
 
 type DeleteTarget = { type: "note" | "canvas"; id: string } | null;
 
@@ -87,6 +64,7 @@ const FavoritesPage = () => {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [filter, setFilter] = useState<"all" | "note" | "canvas">("all");
 
   const refreshSignal = useFavNotificationStore(
     (state) => state.refreshFavSignal
@@ -96,12 +74,14 @@ const FavoritesPage = () => {
     (state) => state.triggerFavRefresh
   );
 
+  const prevSignalRef = useRef(refreshSignal);
+
   useEffect(() => {
     if (!userId) return;
 
-    const fetchFavorites = async () => {
+    const fetchFavorites = async (showSkeleton = true) => {
       try {
-        setLoading(true);
+        if (showSkeleton) setLoading(true);
         const [notesRes, canvasesRes] = await Promise.all([
           fetch(`/api/favorite?userId=${userId}`, {
             method: "GET",
@@ -118,8 +98,15 @@ const FavoritesPage = () => {
         if (!notesRes.ok) throw new Error("Failed to fetch favorite notes");
         if (!canvasesRes.ok) throw new Error("Failed to fetch favorite boards");
 
-        setNotes(await notesRes.json());
-        setCanvases(await canvasesRes.json());
+        const notesData: FavoriteNote[] = await notesRes.json();
+        const canvasesData: FavoriteCanvas[] = await canvasesRes.json();
+        useFavoritesCacheStore.getState().setFavorites(
+          userId,
+          notesData,
+          canvasesData
+        );
+        setNotes(notesData);
+        setCanvases(canvasesData);
       } catch (err) {
         console.error("Error fetching favorites:", err);
         const errorMessage =
@@ -130,7 +117,21 @@ const FavoritesPage = () => {
       }
     };
 
-    fetchFavorites();
+    // 🧠 عرض فوري من الكاش إذا كان موجودًا، مع إعادة تحقق خلفية فقط عند انتهائه
+    const store = useFavoritesCacheStore.getState();
+    const signalChanged = prevSignalRef.current !== refreshSignal;
+    prevSignalRef.current = refreshSignal;
+
+    if (store.userId === userId) {
+      setNotes(store.notes);
+      setCanvases(store.canvases);
+      setLoading(false);
+      const fresh = Date.now() - store.fetchedAt < TTL_MS;
+      if (fresh && !signalChanged) return;
+      fetchFavorites(false);
+    } else {
+      fetchFavorites();
+    }
   }, [userId, refreshSignal]);
 
   const handleRemoveNoteFavorite = async (noteId: string) => {
@@ -148,7 +149,13 @@ const FavoritesPage = () => {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Request failed");
 
-      setNotes((prev) => prev.filter((fav) => fav.noteId !== noteId));
+      const next = (prev: FavoriteNote[]) =>
+        prev.filter((fav) => fav.noteId !== noteId);
+      setNotes(next);
+      useFavoritesCacheStore.getState().setNotes(
+        userId,
+        next(useFavoritesCacheStore.getState().notes)
+      );
       toast.success("Removed from favorites!");
       triggerFavRefresh();
     } catch (err) {
@@ -175,7 +182,13 @@ const FavoritesPage = () => {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Request failed");
 
-      setCanvases((prev) => prev.filter((fav) => fav.canvasId !== canvasId));
+      const next = (prev: FavoriteCanvas[]) =>
+        prev.filter((fav) => fav.canvasId !== canvasId);
+      setCanvases(next);
+      useFavoritesCacheStore.getState().setCanvases(
+        userId,
+        next(useFavoritesCacheStore.getState().canvases)
+      );
       toast.success("Removed from favorites!");
       triggerFavRefresh();
     } catch (err) {
@@ -194,6 +207,7 @@ const FavoritesPage = () => {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
+    if (!userId) return;
     const { type, id } = deleteTarget;
     setDeleteLoading(id);
     try {
@@ -210,10 +224,22 @@ const FavoritesPage = () => {
       }
 
       if (type === "note") {
-        setNotes((prev) => prev.filter((fav) => fav.noteId !== id));
+        const next = (prev: FavoriteNote[]) =>
+          prev.filter((fav) => fav.noteId !== id);
+        setNotes(next);
+        useFavoritesCacheStore.getState().setNotes(
+          userId,
+          next(useFavoritesCacheStore.getState().notes)
+        );
         toast.success("Note deleted");
       } else {
-        setCanvases((prev) => prev.filter((fav) => fav.canvasId !== id));
+        const next = (prev: FavoriteCanvas[]) =>
+          prev.filter((fav) => fav.canvasId !== id);
+        setCanvases(next);
+        useFavoritesCacheStore.getState().setCanvases(
+          userId,
+          next(useFavoritesCacheStore.getState().canvases)
+        );
         toast.success("Board deleted");
       }
 
@@ -248,6 +274,10 @@ const FavoritesPage = () => {
   );
 
   const totalCount = notes.length + canvases.length;
+
+  const visibleNotes = filter === "canvas" ? [] : notes;
+  const visibleCanvases = filter === "note" ? [] : canvases;
+  const visibleCount = visibleNotes.length + visibleCanvases.length;
 
   if (loading) {
     return <NotesLoadingSkeleton count={6} />;
@@ -284,11 +314,36 @@ const FavoritesPage = () => {
         </div>
       </div>
 
+      {/* ── Filter tabs: All / Notes / Canvas ─────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant={filter === "all" ? "default" : "outline"}
+          onClick={() => setFilter("all")}
+        >
+          All ({totalCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={filter === "note" ? "default" : "outline"}
+          onClick={() => setFilter("note")}
+        >
+          Notes ({notes.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filter === "canvas" ? "default" : "outline"}
+          onClick={() => setFilter("canvas")}
+        >
+          Canvas ({canvases.length})
+        </Button>
+      </div>
+
       {/* ── Favorites grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pb-10 gap-4">
-        {totalCount > 0 ? (
+        {visibleCount > 0 ? (
           <>
-            {notes.map((favorite) => (
+            {visibleNotes.map((favorite) => (
               <NoteCard
                 key={favorite.noteId}
                 note={toNote(favorite)}
@@ -304,7 +359,7 @@ const FavoritesPage = () => {
               />
             ))}
 
-            {canvases.map((favorite) => (
+            {visibleCanvases.map((favorite) => (
               <CanvasCard
                 key={favorite.canvasId}
                 canvas={toCanvas(favorite)}
@@ -322,11 +377,18 @@ const FavoritesPage = () => {
           <div className="col-span-full flex flex-col items-center justify-center p-10 min-h-[400px]">
             <Star className="size-16 text-muted-foreground mb-4 opacity-50" />
             <p className="text-muted-foreground text-lg mb-2">
-              No favorites yet
+              {filter === "note"
+                ? "No favorite notes yet"
+                : filter === "canvas"
+                ? "No favorite boards yet"
+                : "No favorites yet"}
             </p>
             <p className="text-muted-foreground/70 text-sm text-center max-w-md">
-              Favorite notes or canvas boards by clicking the star icon to find
-              them here quickly.
+              {filter === "note"
+                ? "Favorite notes by clicking the star icon to find them here quickly."
+                : filter === "canvas"
+                ? "Favorite canvas boards by clicking the star icon to find them here quickly."
+                : "Favorite notes or canvas boards by clicking the star icon to find them here quickly."}
             </p>
             <div className="flex gap-2 mt-4">
               <Link

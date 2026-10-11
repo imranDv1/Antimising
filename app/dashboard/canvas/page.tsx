@@ -17,6 +17,10 @@ import {
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { useFavNotificationStore } from "@/context/updateFavorite";
+import {
+  useCanvasCacheStore,
+  type BoardMeta,
+} from "@/context/canvasCacheStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,6 +74,9 @@ type CanvasMeta = {
 };
 
 type SaveStatus = "saved" | "saving" | "error";
+
+// 🧠 الكاش يعتبر "طازجًا" خلال 60 ثوانٍ — نعرض السين فورًا دون أي طلب شبكة
+const TTL_MS = 60_000;
 
 // Mirrors the Excalidraw UI (floating top toolbar + dot-grid canvas + bottom
 // controls) so the loading state doesn't flash a generic layout.
@@ -172,29 +179,91 @@ export default function CanvasPage() {
     }
   };
 
-  const selectBoard = useCallback(async (id: string) => {
-    setDocLoading(true);
-    setActiveId(null);
-    setActiveDoc(null);
-    setActivePermission(null);
-    try {
-      const res = await fetch(`/api/canvas?id=${id}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to load board");
-      setActiveId(data.canvas.id);
-      setActivePermission(data.canvas.permission ?? "owner");
-      setRenameValue(data.canvas.title);
-      activeTitleRef.current = data.canvas.title;
-      setActiveDoc(data.canvas.document ?? null);
-      setSaveStatus("saved");
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to load board"
-      );
-    } finally {
-      setDocLoading(false);
-    }
-  }, []);
+  const selectBoard = useCallback(
+    async (id: string) => {
+      if (!userId) return;
+      const stored = useCanvasCacheStore.getState().cache[id];
+      const validForUser = stored && stored.userId === userId;
+
+      const applyBoard = (
+        boardId: string,
+        title: string,
+        permission: BoardPermission | null,
+        document: CanvasDocument | null
+      ) => {
+        setActiveId(boardId);
+        setActivePermission(permission ?? "owner");
+        setRenameValue(title);
+        activeTitleRef.current = title;
+        setActiveDoc(document ?? null);
+        setSaveStatus("saved");
+        setDocLoading(false);
+      };
+
+      // اجلب اللوحة كاملًا (فك تشفير) وخزّنها في الكاش
+      const fetchFull = async () => {
+        try {
+          const res = await fetch(`/api/canvas?id=${id}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.message || "Failed to load board");
+          const canvas = data.canvas;
+          useCanvasCacheStore.getState().set({
+            boardId: canvas.id,
+            userId,
+            title: canvas.title,
+            document: canvas.document ?? null,
+            permission: canvas.permission ?? "owner",
+            updatedAt: canvas.updatedAt,
+            fetchedAt: Date.now(),
+          });
+          applyBoard(canvas.id, canvas.title, canvas.permission, canvas.document);
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Failed to load board"
+          );
+          setDocLoading(false);
+        }
+      };
+
+      // تحقق خفيف بدون فك تشفير: إذا لم يتغير updatedAt/permission نكتفي بالكاش
+      const revalidate = async () => {
+        try {
+          const res = await fetch(`/api/canvas?id=${id}&metaOnly=1`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.message || "Failed to load board");
+          const canvas = data.canvas;
+          const current = useCanvasCacheStore.getState().cache[id];
+          if (
+            !current ||
+            canvas.updatedAt !== current.updatedAt ||
+            canvas.permission !== current.permission
+          ) {
+            setDocLoading(true);
+            await fetchFull();
+          }
+        } catch (err) {
+          console.error(err);
+          setDocLoading(true);
+          await fetchFull();
+        }
+      };
+
+      if (validForUser) {
+        // عرض فوري من الكاش دون أي انتظار
+        applyBoard(id, stored.title, stored.permission, stored.document);
+        // إذا كان الكاش طازجًا نتجاوز التحقق تمامًا
+        if (Date.now() - stored.fetchedAt < TTL_MS) return;
+        revalidate();
+      } else {
+        setDocLoading(true);
+        setActiveId(null);
+        setActiveDoc(null);
+        setActivePermission(null);
+        fetchFull();
+      }
+    },
+    [userId]
+  );
 
   // Load which of the caller's boards are favorited (for the star button).
   useEffect(() => {
@@ -268,6 +337,10 @@ export default function CanvasPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || "Failed to create board");
         setCanvases((prev) => [data.canvas, ...prev]);
+        useCanvasCacheStore.getState().patchList((l) => ({
+          ...l,
+          canvases: [data.canvas as BoardMeta, ...l.canvases],
+        }));
         if (selectAfter) await selectBoard(data.canvas.id);
         toast.success("Board created");
         return data.canvas as CanvasMeta;
@@ -283,38 +356,53 @@ export default function CanvasPage() {
     [selectBoard]
   );
 
-  // Initial load: fetch owned + shared boards, auto-create the first one only
-  // when there is nothing at all to open.
-  useEffect(() => {
-    (async () => {
+  // Initial load: serve the boards list from cache when it exists, otherwise
+// fetch owned + shared boards and auto-create the first one only when there
+// is nothing at all to open.
+useEffect(() => {
+  if (!userId) return;
+  (async () => {
+    const store = useCanvasCacheStore.getState();
+    const list = store.list;
+    const hasValidCache = list && list.userId === userId;
+
+    const selectInitialBoard = (
+      owned: BoardMeta[],
+      shared: BoardMeta[]
+    ) => {
+      // Deep link support: /dashboard/canvas?board=<id> opens that board.
+      const boardParam = new URLSearchParams(window.location.search).get(
+        "board"
+      );
+      const requested =
+        boardParam &&
+        [...owned, ...shared].some((c) => c.id === boardParam)
+          ? boardParam
+          : null;
+
+      if (requested) {
+        selectBoard(requested);
+      } else if (owned.length > 0) {
+        selectBoard(owned[0].id);
+      } else if (shared.length > 0) {
+        selectBoard(shared[0].id);
+      } else {
+        createBoard(true);
+      }
+    };
+
+    // جلب القائمة وخزنها في الكاش (بدون تغيير اللوحة المفتوحة حاليًا)
+    const loadList = async (selectFirst: boolean) => {
       try {
         const res = await fetch("/api/canvas");
         const data = await res.json();
         if (!res.ok) throw new Error(data?.message || "Failed to load boards");
-        const owned: CanvasMeta[] = data.canvases ?? [];
-        const shared: CanvasMeta[] = data.sharedCanvases ?? [];
+        const owned: BoardMeta[] = data.canvases ?? [];
+        const shared: BoardMeta[] = data.sharedCanvases ?? [];
+        useCanvasCacheStore.getState().setList(userId, owned, shared);
         setCanvases(owned);
         setSharedCanvases(shared);
-
-        // Deep link support: /dashboard/canvas?board=<id> opens that board.
-        const boardParam = new URLSearchParams(window.location.search).get(
-          "board"
-        );
-        const requested =
-          boardParam &&
-          [...owned, ...shared].some((c) => c.id === boardParam)
-            ? boardParam
-            : null;
-
-        if (requested) {
-          await selectBoard(requested);
-        } else if (owned.length > 0) {
-          await selectBoard(owned[0].id);
-        } else if (shared.length > 0) {
-          await selectBoard(shared[0].id);
-        } else {
-          await createBoard(true);
-        }
+        if (selectFirst) selectInitialBoard(owned, shared);
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : "Failed to load boards"
@@ -323,9 +411,26 @@ export default function CanvasPage() {
         setListLoading(false);
         setDocLoading(false);
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    };
+
+    if (hasValidCache) {
+      // عرض فوري من الكاش دون أي انتظار
+      setListLoading(false);
+      setCanvases(list.canvases);
+      setSharedCanvases(list.sharedCanvases);
+      selectInitialBoard(list.canvases, list.sharedCanvases);
+      // إعادة تحقق خلفية فقط إذا انتهت صلاحية الكاش
+      if (Date.now() - list.fetchedAt >= TTL_MS) {
+        loadList(false);
+      } else {
+        setDocLoading(false);
+      }
+    } else {
+      await loadList(true);
+    }
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [userId]);
 
   // Autosave target — receives the board id from the editor itself so a
   // late flush can never write one board's content into another.
@@ -343,6 +448,13 @@ export default function CanvasPage() {
           const data = await res.json().catch(() => null);
           throw new Error(data?.message || "Save failed");
         }
+        // خزّن آخر نسخة محفوظة في الكاش حتى لا نعتمد لاحقًا على نسخة قديمة
+        const data = await res.json().catch(() => null);
+        useCanvasCacheStore.getState().patch(boardId, {
+          document,
+          updatedAt: data?.canvas?.updatedAt ?? undefined,
+          fetchedAt: Date.now(),
+        });
         if (seq === saveSeqRef.current) setSaveStatus("saved");
       } catch {
         if (seq === saveSeqRef.current) {
@@ -364,6 +476,10 @@ export default function CanvasPage() {
     setCanvases((prev) =>
       prev.map((c) => (c.id === activeId ? { ...c, title } : c))
     );
+    useCanvasCacheStore.getState().patchList((l) => ({
+      ...l,
+      canvases: l.canvases.map((c) => (c.id === activeId ? { ...c, title } : c)),
+    }));
     try {
       const res = await fetch("/api/canvas", {
         method: "PUT",
@@ -371,6 +487,12 @@ export default function CanvasPage() {
         body: JSON.stringify({ id: activeId, title }),
       });
       if (!res.ok) throw new Error("Rename failed");
+      const data = await res.json().catch(() => null);
+      useCanvasCacheStore.getState().patch(activeId, {
+        title,
+        updatedAt: data?.canvas?.updatedAt ?? undefined,
+        fetchedAt: Date.now(),
+      });
     } catch {
       toast.error("Failed to rename board");
     }
@@ -389,6 +511,12 @@ export default function CanvasPage() {
       }
       setCanvases((prev) => prev.filter((c) => c.id !== activeId));
       setSharedCanvases((prev) => prev.filter((c) => c.id !== activeId));
+      useCanvasCacheStore.getState().remove(activeId);
+      useCanvasCacheStore.getState().patchList((l) => ({
+        ...l,
+        canvases: l.canvases.filter((c) => c.id !== activeId),
+        sharedCanvases: l.sharedCanvases.filter((c) => c.id !== activeId),
+      }));
       setDeleteOpen(false);
       toast.success("Board deleted");
 

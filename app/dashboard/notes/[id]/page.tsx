@@ -1,17 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor";
 import { authClient } from "@/lib/auth-client";
 import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
 import { useSharedStore } from "@/context/sharedStore";
+import { useSharedCacheStore } from "@/context/sharedCacheStore";
+import { useNoteBodyCacheStore } from "@/context/noteBodyCacheStore";
 import { ArrowLeftToLine, RefreshCw, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type tParams = { id: string };
+
+// 🧠 الكاش يعتبر "طازجًا" خلال 60 ثوانٍ — نعرض المحتوى فورًا دون أي إعادة تحقق
+const TTL_MS = 60_000;
 
 const Page = (props: { params: Promise<tParams> }) => {
   const [params, setParams] = useState<tParams | null>(null);
@@ -24,6 +29,7 @@ const Page = (props: { params: Promise<tParams> }) => {
   const [limit, setMaxlimit] = useState<number>(3); // default limit
   const [error, setUIerror] = useState("");
   const [retrySignal, setRetrySignal] = useState(0);
+  const prevRefreshSignalRef = useRef(0);
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
 
@@ -43,6 +49,7 @@ const Page = (props: { params: Promise<tParams> }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ noteId: params.id }),
         });
+        useSharedCacheStore.getState().markRead(params.id);
         triggerSharedRefresh();
       } catch (err) {
         console.error(err);
@@ -88,19 +95,42 @@ const Page = (props: { params: Promise<tParams> }) => {
     fetchMaxChars();
   }, [userId]);
 
-  // Fetch note data (depends on refresh signal)
+  // 🧠 Smart caching: serve cached note instantly, then only refetch the full
+  // body if the server's updatedAt/permission changed (cheap metaOnly check).
   useEffect(() => {
     if (!userId || !params) return;
+    const noteId = params.id;
 
-    const fetchNotes = async () => {
-      setIsFetched(false);
+    const cached = useNoteBodyCacheStore.getState().cache[noteId];
+    const isCacheValidForUser = cached && cached.userId === userId;
+
+    const applyBody = (data: any) => {
+      setNotes(data.notebody || null);
+      if (data?.permission) setPermission(data.permission);
+      useNoteBodyCacheStore.getState().set({
+        noteId,
+        userId,
+        notebody: data.notebody || null,
+        noteTitle: data.noteTitle,
+        permission: data.permission,
+        isOwner: data.isOwner,
+        shareCount: data.shareCount,
+        ownerName: data.ownerName,
+        ownerEmail: data.ownerEmail,
+        updatedAt: data.updatedAt,
+        fetchedAt: Date.now(),
+      });
+    };
+
+    // اجلب المحتوى كاملًا وخزّنه في الكاش
+    const fetchFull = async () => {
       setUIerror("");
       try {
         const res = await fetch("/api/notebody", {
           method: "POST",
-          cache: "force-cache",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, noteId: params.id }),
+          body: JSON.stringify({ userId, noteId }),
         });
 
         const data = await res.json();
@@ -108,14 +138,7 @@ const Page = (props: { params: Promise<tParams> }) => {
           setNotes(null);
           setUIerror(data.message);
         } else {
-          setNotes(data.notebody || null);
-          if (
-            data?.permission === "read" ||
-            data?.permission === "write" ||
-            data?.permission === "owner"
-          ) {
-            setPermission(data.permission);
-          }
+          applyBody(data);
         }
       } catch (err) {
         console.error(err);
@@ -126,7 +149,54 @@ const Page = (props: { params: Promise<tParams> }) => {
       }
     };
 
-    fetchNotes();
+    // تحقق خفيف بدون فك تشفير: إذا لم يتغير updatedAt/permission نكتفي بالكاش
+    const revalidate = async () => {
+      try {
+        const res = await fetch("/api/notebody", {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, noteId, metaOnly: true }),
+        });
+
+        const data = await res.json();
+        const current = useNoteBodyCacheStore.getState().cache[noteId];
+        if (
+          data?.success === false ||
+          !current ||
+          data.updatedAt !== current.updatedAt ||
+          data.permission !== current.permission
+        ) {
+          setIsFetched(false);
+          await fetchFull();
+        } else {
+          // لا تغييرات — نبقى على الكاش
+          setIsFetched(true);
+        }
+      } catch (err) {
+        console.error(err);
+        setIsFetched(false);
+        await fetchFull();
+      }
+    };
+
+    if (isCacheValidForUser) {
+      // عرض فوري من الكاش دون أي انتظار
+      setNotes(cached.notebody);
+      setPermission(cached.permission);
+      setIsFetched(true);
+
+      // إذا كان الكاش طازجًا ولم ننفّذ عملية حفظ/تحديث نتجاوز إعادة التحقق
+      const isFresh =
+        Date.now() - cached.fetchedAt < TTL_MS &&
+        prevRefreshSignalRef.current === refreshEditorSignal;
+      prevRefreshSignalRef.current = refreshEditorSignal;
+      if (isFresh) return;
+      revalidate();
+    } else {
+      setIsFetched(false);
+      fetchFull();
+    }
   }, [userId, params, refreshEditorSignal, retrySignal]);
 
   if (!params || !isFetched) return null;
@@ -168,7 +238,7 @@ const Page = (props: { params: Promise<tParams> }) => {
 
   return (
     <div className="w-full min-w-0">
-      <div className="w-full h-max flex items-center justify-center">
+<div className="w-full h-max flex items-center justify-center">
         <SimpleEditor
           noteId={params.id}
           content={isThereContent ? notebody.content : undefined}

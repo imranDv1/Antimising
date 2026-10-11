@@ -52,11 +52,25 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const metaOnly = searchParams.get("metaOnly") === "1";
 
     if (id) {
       const access = await getCanvasAccess(id, sessionUserId);
       if ("error" in access)
         return NextResponse.json({ message: access.error }, { status: access.status });
+
+      // تمريرة خفيفة (metaOnly): بدون فك تشفير السين — تُستخدم للتحقق من أن
+      // اللّوحة لم تتغير قبل الاعتماد على الكاش في العميل.
+      if (metaOnly) {
+        return NextResponse.json({
+          canvas: {
+            id: access.canvas.id,
+            title: access.canvas.title,
+            updatedAt: access.canvas.updatedAt,
+            permission: access.permission,
+          },
+        });
+      }
 
       let document: unknown = null;
       try {

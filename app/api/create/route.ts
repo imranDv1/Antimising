@@ -12,7 +12,10 @@ import {
 export async function POST(request: Request) {
   const { title, description, category, userId } = await request.json();
   if (!userId) {
-    return NextResponse.json({ message: "userId are required" });
+    return NextResponse.json(
+      { message: "userId are required" },
+      { status: 400 }
+    );
   }
 
   // 🔐 نعتمد على الجلسة فقط ولا نثق بالـ userId من العميل

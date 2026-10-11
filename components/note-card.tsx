@@ -125,7 +125,7 @@ export const NoteCard = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    className="mt-0.5 shrink-0 rounded-md p-1 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+                    className="mt-0.5 shrink-0 cursor-pointer rounded-md p-1 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
                     disabled={favoriteLoading[note.id]}
                     onClick={() => onFavorite(note.id)}
                     aria-label={
@@ -140,8 +140,8 @@ export const NoteCard = ({
                       <Star
                         className="size-4 transition-colors"
                         fill={favoriteStatus[note.id] ? "#FBBF24" : "none"}
-                        color="#F59E0B"
-                        stroke="#F59E0B"
+                        color={favoriteStatus[note.id] ? "#F59E0B" : "#9CA3AF"}
+                        stroke={favoriteStatus[note.id] ? "#F59E0B" : "#9CA3AF"}
                         strokeWidth={1.5}
                       />
                     )}
@@ -214,7 +214,7 @@ export const NoteCard = ({
               type="button"
               onClick={() => onOpen?.(note.id)}
               disabled={openingNoteId === note.id}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {openingNoteId === note.id ? (
                 <>
@@ -229,7 +229,7 @@ export const NoteCard = ({
             {!isShared && (
               <button
                 onClick={() => onEdit(note)}
-                className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 Edit
               </button>
@@ -238,7 +238,7 @@ export const NoteCard = ({
             {isShared && note.permission === "write" && (
               <button
                 onClick={() => onEdit(note)}
-                className="rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 Edit
               </button>
@@ -256,7 +256,7 @@ export const NoteCard = ({
                   <button
                     onClick={() => onDelete(note.id)}
                     disabled={deleteLoading === note.id}
-                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+                    className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
                     aria-label="Delete note"
                   >
                     {deleteLoading === note.id ? (

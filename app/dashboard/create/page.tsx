@@ -27,6 +27,7 @@ type NotesPayload = {
   totalCount: number;
   page: number;
   limit: number;
+  noteLimit: number | null;
   hasMore: boolean;
 };
 
@@ -34,12 +35,12 @@ const Page = () => {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
 
-  // Read the list from the module-level cache so returning from a note page
+// Read the list from the module-level cache so returning from a note page
   // (or any client navigation) does not trigger a refetch.
   const notes = useNotesCacheStore((s) => s.notes);
   const totalCount = useNotesCacheStore((s) => s.totalCount);
   const hasMore = useNotesCacheStore((s) => s.hasMore);
-
+  const noteLimit = useNotesCacheStore((s) => s.noteLimit);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const hydratedRef = useRef(false);
@@ -82,6 +83,7 @@ const Page = () => {
           notes: merged,
           totalCount: data.totalCount ?? 0,
           hasMore: data.hasMore ?? false,
+          noteLimit: data.noteLimit ?? null,
           page,
         });
       } catch (err) {
@@ -130,6 +132,7 @@ const Page = () => {
     <CreateNotes
       notes={notes}
       totalCount={totalCount}
+      noteLimit={noteLimit}
       hasMore={hasMore}
       loadingMore={loadingMore}
       onLoadMore={loadMore}

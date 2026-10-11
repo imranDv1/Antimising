@@ -588,6 +588,13 @@ export function SimpleEditor({
   const handleSave = async () => {
     if (!editor) return;
 
+    // لا تغييرات — نكتفي بإغلاق وضع التعديل دون حفظ أو إعادة جلب
+    if (!isDirty()) {
+      toast.info("No changes to save.");
+      setEdit(false);
+      return;
+    }
+
     const contentLength = editor.getText().length;
     if (contentLength > MAX_CHARS) {
       toast.error(`Cannot save! Maximum allowed content is ${MAX_CHARS} characters.`);
@@ -617,6 +624,7 @@ export function SimpleEditor({
         baselineRef.current = contentJSON;
         setUploadedFiles([]); // Fix 8: clear uploaded files after successful save to avoid re-uploading
         triggerEditorRefresh();
+        setEdit(false); // ✅ الخروج من وضع التعديل بعد الحفظ
       } else {
         toast.error("Error: " + data.error);
       }

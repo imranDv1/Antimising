@@ -1,16 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Note, NoteCard, sortFavoritesFirst } from "@/components/note-card";
 import { authClient } from "@/lib/auth-client";
 import { useSharedStore } from "@/context/sharedStore";
+import { useSharedCacheStore } from "@/context/sharedCacheStore";
 import { useFavoritesOnTop } from "@/context/notesPrefsStore";
 import { useFavoritesCacheStore } from "@/context/favoritesCacheStore";
+import { useFavNotificationStore } from "@/context/updateFavorite";
 import { useRouter } from "next/navigation";
 import NotesLoadingSkeleton from "../create/_components/NotesLoadingSkeleton ";
 import { Users } from "lucide-react";
 import { toast } from "sonner";
+
+// 🧠 الكاش يعتبر "طازجًا" خلال 60 ثوانٍ — لا جلب عند الرجوع لهذه الصفحة
+const TTL_MS = 60_000;
 
 const Page = () => {
   const router = useRouter();
@@ -26,6 +31,11 @@ const Page = () => {
   const [favoritesOnTop] = useFavoritesOnTop();
 
   const refreshSharedSignal = useSharedStore((s) => s.refreshSharedSignal);
+  const prevSignalRef = useRef(refreshSharedSignal);
+
+  const triggerFavRefresh = useFavNotificationStore(
+    (s) => s.triggerFavRefresh
+  );
 
   const loadFavorites = useCallback(async () => {
     if (!userId) return;
@@ -47,15 +57,19 @@ const Page = () => {
   useEffect(() => {
     if (!userId) return;
 
-    const load = async () => {
+    const load = async (showSkeleton = true) => {
       try {
+        if (showSkeleton) setLoading(true);
         const res = await fetch(`/api/shared-notes?userId=${userId}`, {
           cache: "no-cache",
         });
         if (!res.ok) throw new Error("Failed to fetch shared notes");
         const data = await res.json();
-        setNotes(data.notes ?? []);
-        setUnreadCount(data.unreadCount ?? 0);
+        const loadedNotes = (data.notes ?? []) as Note[];
+        const loadedUnread = data.unreadCount ?? 0;
+        useSharedCacheStore.getState().set(userId, loadedNotes, loadedUnread);
+        setNotes(loadedNotes);
+        setUnreadCount(loadedUnread);
       } catch (err) {
         console.error(err);
       } finally {
@@ -63,7 +77,22 @@ const Page = () => {
       }
     };
 
-    load();
+    const store = useSharedCacheStore.getState();
+    const signalChanged = prevSignalRef.current !== refreshSharedSignal;
+    prevSignalRef.current = refreshSharedSignal;
+
+    if (store.userId === userId) {
+      // 🧠 عرض فوري من الكاش، مع إعادة تحقق خلفية فقط عند انتهاء الصلاحية
+      setNotes(store.notes);
+      setUnreadCount(store.unreadCount);
+      setLoading(false);
+      const fresh = Date.now() - store.fetchedAt < TTL_MS;
+      if (fresh && !signalChanged) return;
+      load(false);
+    } else {
+      load();
+    }
+
     loadFavorites();
   }, [userId, refreshSharedSignal, loadFavorites]);
 
@@ -80,6 +109,30 @@ const Page = () => {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error || "Request failed");
       useFavoritesCacheStore.getState().toggle(noteId, !isFav);
+      triggerFavRefresh();
+      const favStore = useFavoritesCacheStore.getState();
+      if (isFav) {
+        favStore.removeNote(userId, noteId);
+      } else if (data?.favorite?.id) {
+        const note = notes.find((n) => n.id === noteId);
+        if (note) {
+          favStore.addNote(userId, {
+            id: data.favorite.id,
+            userId,
+            noteId,
+            createdAt: new Date(data.favorite.createdAt),
+            note: {
+              id: note.id,
+              title: note.title,
+              description: note.description,
+              category: note.category,
+              createdAt: new Date(note.createdAt),
+              updatedAt: new Date(note.updatedAt),
+              userId: note.userId,
+            },
+          });
+        }
+      }
       toast.success(isFav ? "Removed from favorites" : "Added to favorites");
     } catch (err: any) {
       toast.error(err.message);
