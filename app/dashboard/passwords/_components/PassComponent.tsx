@@ -423,7 +423,7 @@ const PassComponent = () => {
         {loading && (
           <>
             {Array.from({ length: 8 }).map((_, i) => (
-              <Card key={i} className="animate-pulse ">
+              <Card key={i} className="animate-pulse rounded-none ">
                 <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pb-0">
                   <div className="size-9  bg-muted" />
                   <div className="min-w-0 flex-1 space-y-2">
@@ -470,7 +470,7 @@ const PassComponent = () => {
             return (
               <Card
                 key={item.id}
-                className="bg-card gap-2  transition-shadow hover:shadow-md"
+                className="bg-card gap-2  transition-shadow hover:shadow-md rounded-none"
               >
                 <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pt-0 pb-0">
                   <div
