@@ -145,7 +145,7 @@ const PassComponent = () => {
   const [showEditPass, setShowEditPass] = useState(false);
 
   const refreshAddPassSignal = useAddPassNotificationStore(
-    (state) => state.refreshAddPassSignal
+    (state) => state.refreshAddPassSignal,
   );
   const prevSignalRef = useRef(refreshAddPassSignal);
 
@@ -176,7 +176,7 @@ const PassComponent = () => {
         if (!res.ok) throw new Error("Failed to fetch pass");
         const data = ((await res.json()) as Pass[]).sort(
           (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
         usePassCacheStore.getState().setPass(userId, data);
         setPass(data);
@@ -205,7 +205,7 @@ const PassComponent = () => {
 
   const categoriesInUse = useMemo(
     () => Array.from(new Set(pass.map((p) => p.category))),
-    [pass]
+    [pass],
   );
 
   const filteredPasses = useMemo(() => {
@@ -352,7 +352,7 @@ const PassComponent = () => {
       {/* ─── Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex size-12 shrink-0 items-center justify-center  bg-primary/10 text-primary">
             <Lock className="size-6" />
           </div>
           <div className="flex flex-col gap-0.5">
@@ -423,20 +423,20 @@ const PassComponent = () => {
         {loading && (
           <>
             {Array.from({ length: 8 }).map((_, i) => (
-              <Card key={i} className="animate-pulse rounded-2xl">
+              <Card key={i} className="animate-pulse ">
                 <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pb-0">
-                  <div className="size-9 rounded-lg bg-muted" />
+                  <div className="size-9  bg-muted" />
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="h-3.5 w-3/4 rounded bg-muted" />
                     <div className="h-3 w-1/2 rounded bg-muted" />
                   </div>
                 </CardHeader>
                 <CardContent className="grid gap-1.5 p-4">
-                  <div className="h-8 rounded-lg bg-muted" />
-                  <div className="h-8 rounded-lg bg-muted" />
+                  <div className="h-8  bg-muted" />
+                  <div className="h-8  bg-muted" />
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
-                  <div className="h-7 w-full rounded-lg bg-muted" />
+                  <div className="h-7 w-full  bg-muted" />
                 </CardFooter>
               </Card>
             ))}
@@ -444,8 +444,8 @@ const PassComponent = () => {
         )}
 
         {!loading && filteredPasses.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed py-20 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <div className="col-span-full flex flex-col items-center justify-center gap-4  border border-dashed py-20 text-center">
+            <div className="flex size-14 items-center justify-center  bg-primary/10 text-primary">
               <KeyRound className="size-7" />
             </div>
             <div className="flex flex-col gap-1">
@@ -470,13 +470,13 @@ const PassComponent = () => {
             return (
               <Card
                 key={item.id}
-                className="bg-card gap-2 rounded-2xl transition-shadow hover:shadow-md"
+                className="bg-card gap-2  transition-shadow hover:shadow-md"
               >
                 <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pt-0 pb-0">
                   <div
                     className={cn(
-                      "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                      CATEGORY_ICON_BLOCK
+                      "flex size-9 shrink-0 items-center justify-center ",
+                      CATEGORY_ICON_BLOCK,
                     )}
                   >
                     <meta.icon className="size-4" />
@@ -491,7 +491,7 @@ const PassComponent = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-1.5 px-3 pb-3 pt-1">
-                  <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-2.5 py-1.5">
+                  <div className="flex items-center gap-2  border bg-muted/40 px-2.5 py-1.5">
                     <User className="size-3.5 shrink-0 text-primary/70" />
                     <span className="min-w-0 flex-1 truncate text-[13px]">
                       {item.username}
@@ -500,21 +500,23 @@ const PassComponent = () => {
                       type="button"
                       aria-label="Copy username"
                       onClick={() => copyText(item.username, "Username")}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      className=" p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                     >
                       <Copy className="size-3.5" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-2.5 py-1.5">
+                  <div className="flex items-center gap-2  border bg-muted/40 px-2.5 py-1.5">
                     <KeyRound className="size-3.5 shrink-0 text-primary/70" />
                     <span className="min-w-0 flex-1 truncate font-mono text-[13px]">
                       {isRevealed ? item.password : "••••••••••••"}
                     </span>
                     <button
                       type="button"
-                      aria-label={isRevealed ? "Hide password" : "Show password"}
+                      aria-label={
+                        isRevealed ? "Hide password" : "Show password"
+                      }
                       onClick={() => toggleReveal(item.id)}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      className=" p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                     >
                       {isRevealed ? (
                         <EyeOff className="size-3.5" />
@@ -526,7 +528,7 @@ const PassComponent = () => {
                       type="button"
                       aria-label="Copy password"
                       onClick={() => copyText(item.password, "Password")}
-                      className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                      className=" p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                     >
                       <Copy className="size-3.5" />
                     </button>
@@ -537,7 +539,7 @@ const PassComponent = () => {
                     variant="outline"
                     onClick={() =>
                       setActiveCategory((prev) =>
-                        prev === item.category ? null : item.category
+                        prev === item.category ? null : item.category,
                       )
                     }
                     className="cursor-pointer select-none text-[10px]"
@@ -545,7 +547,12 @@ const PassComponent = () => {
                     {meta.label}
                   </Badge>
                   <div className="flex items-center gap-1.5">
-                    <Button size="sm" variant="outline" className="h-8 gap-1 px-2 text-xs" onClick={() => openEdit(item)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1 px-2 text-xs"
+                      onClick={() => openEdit(item)}
+                    >
                       <Pencil className="size-3" />
                       Edit
                     </Button>
@@ -774,8 +781,8 @@ const PassComponent = () => {
             <DialogTitle>Confirm Delete</DialogTitle>
           </DialogHeader>
           <DialogDescription>
-            Are you sure you want to delete this Password? This action cannot
-            be undone.
+            Are you sure you want to delete this Password? This action cannot be
+            undone.
           </DialogDescription>
           <DialogFooter className="mt-4 flex justify-end gap-2">
             <Button
