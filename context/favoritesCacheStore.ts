@@ -34,6 +34,10 @@ export type FavoriteCanvas = {
 
 interface FavoritesCacheState {
   userId: string | null;
+  // Which user the `notes`/`canvases` lists belong to. Kept separate from
+  // `userId` because `userId` is also set by setStatus(), which only caches
+  // favorite flags and does not load the full lists.
+  listsUserId: string | null;
   status: Record<string, boolean>;
   notes: FavoriteNote[];
   canvases: FavoriteCanvas[];
@@ -59,6 +63,7 @@ interface FavoritesCacheState {
 // to it does not refetch every time.
 export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
   userId: null,
+  listsUserId: null,
   status: {},
   notes: [],
   canvases: [],
@@ -67,14 +72,24 @@ export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
   toggle: (noteId, value) =>
     set((s) => ({ status: { ...s.status, [noteId]: value } })),
   setFavorites: (userId, notes, canvases) =>
-    set({ userId, notes, canvases, fetchedAt: Date.now() }),
+    set({
+      userId,
+      listsUserId: userId,
+      notes,
+      canvases,
+      fetchedAt: Date.now(),
+    }),
   setNotes: (userId, notes) =>
     set((state) =>
-      state.userId === userId ? { notes, fetchedAt: Date.now() } : state
+      state.userId === userId
+        ? { notes, listsUserId: userId, fetchedAt: Date.now() }
+        : state
     ),
   setCanvases: (userId, canvases) =>
     set((state) =>
-      state.userId === userId ? { canvases, fetchedAt: Date.now() } : state
+      state.userId === userId
+        ? { canvases, listsUserId: userId, fetchedAt: Date.now() }
+        : state
     ),
   addNote: (userId, fav) =>
     set((state) =>
@@ -106,12 +121,20 @@ export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
         : state
     ),
   reset: () =>
-    set({ userId: null, status: {}, notes: [], canvases: [], fetchedAt: 0 }),
+    set({
+      userId: null,
+      listsUserId: null,
+      status: {},
+      notes: [],
+      canvases: [],
+      fetchedAt: 0,
+    }),
 }));
 
 export function resetFavoritesCache() {
   useFavoritesCacheStore.setState({
     userId: null,
+    listsUserId: null,
     status: {},
     notes: [],
     canvases: [],

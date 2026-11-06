@@ -33,7 +33,7 @@ export function getTagColor(tag: string) {
     "bg-secondary/80 text-secondary-foreground border-border hover:bg-secondary",
     "bg-muted text-muted-foreground border-border hover:bg-muted/80",
     "bg-accent/10 text-accent-foreground border-border hover:bg-accent/20",
-    "bg-primary/10 text-primary-foreground border-border hover:bg-primary/15",
+    "bg-background text-muted-foreground border-border hover:bg-muted/60",
     "bg-secondary text-secondary-foreground border-border hover:bg-secondary/90",
     "bg-muted/90 text-muted-foreground border-border hover:bg-muted",
   ][idx];

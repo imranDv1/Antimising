@@ -94,6 +94,7 @@ import Link from "next/link";
 import CustomButton from "@/components/CustomButton";
 import { ShareNoteDialog } from "@/components/share-dialog";
 import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
+import { useNoteBodyCacheStore } from "@/context/noteBodyCacheStore";
 import { convertMarkdownHeadingsToHtml } from "@/lib/converMarkdownHeading";
 
 // --- Fix 1: Removed unused `authClient` import ---
@@ -623,6 +624,14 @@ export function SimpleEditor({
         toast.success("Note saved!");
         baselineRef.current = contentJSON;
         setUploadedFiles([]); // Fix 8: clear uploaded files after successful save to avoid re-uploading
+        // Keep the client cache in sync with what was just persisted, so
+        // reopening the note shows the new body immediately instead of
+        // serving the pre-save cached copy.
+        if (data.notebody) {
+          useNoteBodyCacheStore
+            .getState()
+            .updateNotebody(noteId, data.notebody, data.updatedAt);
+        }
         triggerEditorRefresh();
         setEdit(false); // ✅ الخروج من وضع التعديل بعد الحفظ
       } else {

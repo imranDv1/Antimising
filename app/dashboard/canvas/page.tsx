@@ -9,13 +9,16 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  Pencil,
   Plus,
   Share2,
   Star,
   Trash2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useFavNotificationStore } from "@/context/updateFavorite";
 import {
   useCanvasCacheStore,
@@ -141,6 +144,8 @@ export default function CanvasPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [favLoading, setFavLoading] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const isMobile = useIsMobile();
   const saveSeqRef = useRef(0);
   const activeTitleRef = useRef("");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -498,6 +503,23 @@ useEffect(() => {
     }
   }, [activeId, renameValue, canManage]);
 
+  // Mobile rename: a floating input instead of an inline field that would eat
+  // the little horizontal space available.
+  const openRename = () => {
+    setRenameValue(activeTitleRef.current);
+    setRenameOpen(true);
+  };
+
+  const cancelRename = () => {
+    setRenameValue(activeTitleRef.current);
+    setRenameOpen(false);
+  };
+
+  const commitRename = () => {
+    setRenameOpen(false);
+    void handleRename();
+  };
+
   const handleDelete = useCallback(async () => {
     if (!activeId) return;
     setDeleteLoading(true);
@@ -637,7 +659,7 @@ useEffect(() => {
             if (value && value !== activeId) selectBoard(value);
           }}
         >
-          <SelectTrigger className="w-[260px]">
+          <SelectTrigger className="w-full min-w-0 sm:w-[260px] sm:flex-none">
             <SelectValue placeholder="Select a board" />
           </SelectTrigger>
           <SelectContent className="z-[99999]">
@@ -664,17 +686,76 @@ useEffect(() => {
           </SelectContent>
         </Select>
 
-        <Input
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onBlur={handleRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-          placeholder="Board name"
-          disabled={!activeId || docLoading || !canManage}
-          className="max-w-xs"
-        />
+        {isMobile ? (
+          canManage && (
+            <div className="relative shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!activeId || docLoading}
+                onClick={openRename}
+                aria-label="Rename board"
+              >
+                <Pencil className="size-4" />
+              </Button>
+
+              {renameOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={cancelRename}
+                    aria-hidden="true"
+                  />
+                  <div className="absolute right-0 top-full z-50 mt-2 w-[min(calc(100vw-2rem),20rem)] rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+                    <Input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          commitRename();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          cancelRename();
+                        }
+                      }}
+                      placeholder="Board name"
+                      autoFocus
+                    />
+                    <div className="mt-2 flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={cancelRename}
+                      >
+                        <X className="size-4" />
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={commitRename}>
+                        <Check className="size-4" />
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        ) : (
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={handleRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            placeholder="Board name"
+            disabled={!activeId || docLoading || !canManage}
+            className="max-w-xs"
+          />
+        )}
 
         {canManage && (
           <Button
@@ -691,12 +772,13 @@ useEffect(() => {
         {canManage && (
           <Button
             variant="outline"
+            size={isMobile ? "icon" : "default"}
             disabled={!activeId || docLoading}
             onClick={() => setShareOpen(true)}
             aria-label="Share board"
           >
             <Share2 className="size-4" />
-            Share
+            {!isMobile && "Share"}
           </Button>
         )}
       </div>

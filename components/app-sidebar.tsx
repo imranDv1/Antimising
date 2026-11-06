@@ -9,7 +9,7 @@ import {
   IconReport,
   IconSettings
 } from "@tabler/icons-react";
-import * as React from "react";
+import * as React from "react"
 
 import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
@@ -56,7 +56,7 @@ const data = {
       title: "Canvas",
       url: "/dashboard/canvas",
       icon: Shapes,
-      // badge: "new",
+      badge: "new",
 
     },
 

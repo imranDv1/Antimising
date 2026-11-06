@@ -278,19 +278,36 @@ export async function POST(request: Request) {
     // 🔒 تشفير المحتوى قبل الحفظ — لا تُخزَّن أبدًا بيانات النص الصريح في قاعدة البيانات
     const encryptedPayload = encryptNoteBody(content, links);
 
-    // Save or update NoteBody (only the encrypted payload, never plaintext)
-    if (existingBody) {
-      await prisma.noteBody.update({
-        where: { noteId },
-        data: { contentEnc: encryptedPayload, images: finalImages },
-      });
-    } else {
-      await prisma.noteBody.create({
-        data: { noteId, contentEnc: encryptedPayload, images: finalImages },
-      });
-    }
+    // Save or update NoteBody (only the encrypted payload, never plaintext).
+    // Also bump Note.updatedAt so clients can detect that the body changed:
+    // the cache revalidation compares Note.updatedAt before reusing cached text.
+    const saveBody = existingBody
+      ? prisma.noteBody.update({
+          where: { noteId },
+          data: { contentEnc: encryptedPayload, images: finalImages },
+        })
+      : prisma.noteBody.create({
+          data: { noteId, contentEnc: encryptedPayload, images: finalImages },
+        });
 
-    return NextResponse.json({ success: true });
+    const [savedBody, updatedNote] = await prisma.$transaction([
+      saveBody,
+      prisma.note.update({
+        where: { id: noteId },
+        data: { updatedAt: new Date() },
+      }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      notebody: {
+        id: savedBody.id,
+        content: content ?? null,
+        links,
+        images: savedBody.images,
+      },
+      updatedAt: updatedNote.updatedAt,
+    });
   } catch (err: any) {
     console.error(err);
     return NextResponse.json({ success: false, error: err.message });
