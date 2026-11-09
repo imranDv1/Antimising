@@ -54,9 +54,25 @@ const FavoritesPage = () => {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
   const router = useRouter();
-  const [notes, setNotes] = useState<FavoriteNote[]>([]);
-  const [canvases, setCanvases] = useState<FavoriteCanvas[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seed the local state from the shared cache so client-side navigation to
+  // this page paints the favorites immediately instead of flashing a skeleton
+  // and then the (sometimes empty) result list.
+  const [notes, setNotes] = useState<FavoriteNote[]>(() => {
+    const cache = useFavoritesCacheStore.getState();
+    return cache.listsUserId === userId && cache.fetchedAt > 0
+      ? cache.notes
+      : [];
+  });
+  const [canvases, setCanvases] = useState<FavoriteCanvas[]>(() => {
+    const cache = useFavoritesCacheStore.getState();
+    return cache.listsUserId === userId && cache.fetchedAt > 0
+      ? cache.canvases
+      : [];
+  });
+  const [loading, setLoading] = useState(() => {
+    const cache = useFavoritesCacheStore.getState();
+    return !(cache.listsUserId === userId && cache.fetchedAt > 0);
+  });
   const [favoriteLoading, setFavoriteLoading] = useState<
     Record<string, boolean>
   >({});
@@ -122,7 +138,7 @@ const FavoritesPage = () => {
     const signalChanged = prevSignalRef.current !== refreshSignal;
     prevSignalRef.current = refreshSignal;
 
-    if (store.userId === userId) {
+    if (store.listsUserId === userId && store.fetchedAt > 0) {
       setNotes(store.notes);
       setCanvases(store.canvases);
       setLoading(false);
@@ -156,6 +172,9 @@ const FavoritesPage = () => {
         userId,
         next(useFavoritesCacheStore.getState().notes)
       );
+      // Keep the shared star flags in sync so the note's star turns off on the
+      // notes/shared pages too.
+      useFavoritesCacheStore.getState().toggle(noteId, false);
       toast.success("Removed from favorites!");
       triggerFavRefresh();
     } catch (err) {
@@ -231,6 +250,7 @@ const FavoritesPage = () => {
           userId,
           next(useFavoritesCacheStore.getState().notes)
         );
+        useFavoritesCacheStore.getState().toggle(id, false);
         toast.success("Note deleted");
       } else {
         const next = (prev: FavoriteCanvas[]) =>

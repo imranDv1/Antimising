@@ -577,9 +577,11 @@ const CreateNotesPage = ({
   useEffect(() => {
     if (!userId) return;
     // Show cached favorites instantly (keeps favorites pinned to the top with
-    // no reorder flash); only hit the network when this user has no cache yet.
+    // no reorder flash); only hit the network when the flags have not been
+    // hydrated for this user yet. Checking `statusUserId` (not `userId`) is
+    // important: the favorites lists can be cached without the star flags.
     const cached = useFavoritesCacheStore.getState();
-    if (cached.userId === userId) return;
+    if (cached.statusUserId === userId) return;
     fetch(`/api/favorite?userId=${userId}`)
       .then((r) => r.json())
       .then((favs: any[]) => {

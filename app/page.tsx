@@ -25,6 +25,7 @@ export default async function Home() {
 
   return (
     <div className='dark:bg-black'>
+      
       <HeroSection />
       {/* <LogoCloud/> */}
       <div className="w-[95%] lg:w-[80%] mx-auto flex flex-col gap-5 mt-15">

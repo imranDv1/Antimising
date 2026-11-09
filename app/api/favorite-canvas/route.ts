@@ -34,7 +34,8 @@ async function hasCanvasAccess(
   return Boolean(share);
 }
 
-// Add/remove a board from the user's favorites (toggle)
+// Add a board to the user's favorites. Idempotent: adding an already-favorited
+// board keeps it favorited instead of toggling it off.
 export async function POST(req: Request) {
   try {
     const sessionUserId = await getSessionUserId();
@@ -57,11 +58,8 @@ export async function POST(req: Request) {
     });
 
     if (existing) {
-      await prisma.favoriteCanvas.delete({
-        where: { userId_canvasId: { userId: resolved, canvasId } },
-      });
       return NextResponse.json(
-        { message: "Removed from favorites", removed: true },
+        { message: "Already in favorites", favorite: existing, removed: false },
         { status: 200 }
       );
     }
@@ -102,9 +100,11 @@ export async function DELETE(req: Request) {
     });
 
     if (!existing) {
+      // Already not favorite — treat as success so stale client state never
+      // surfaces an error toast.
       return NextResponse.json(
-        { message: "Board not in favorites" },
-        { status: 404 }
+        { message: "Board not in favorites", removed: true },
+        { status: 200 }
       );
     }
 

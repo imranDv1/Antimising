@@ -40,9 +40,11 @@ const Page = () => {
   const loadFavorites = useCallback(async () => {
     if (!userId) return;
     // Use the cached flags when available so favorites stay pinned to the top
-    // instantly; only fetch when this user has no cache yet.
+    // instantly; only fetch when the flags have not been hydrated for this
+    // user yet. `userId` alone is not enough because it is also set when the
+    // favorites lists are cached without the per-note star flags.
     const cached = useFavoritesCacheStore.getState();
-    if (cached.userId === userId) return;
+    if (cached.statusUserId === userId) return;
     try {
       const res = await fetch(`/api/favorite?userId=${userId}`, { cache: "no-cache" });
       const favs = (await res.json()) as any[];

@@ -15,7 +15,9 @@ function resolveUserId(
   return sessionUserId;
 }
 
-// Add/remove a note from the user's favorites (toggle)
+// Add a note to the user's favorites. Idempotent: adding an already-favorited
+// note keeps it favorited instead of toggling it off, so a client with a stale
+// star state can never accidentally remove the favorite.
 export async function POST(req: Request) {
   try {
     const sessionUserId = await getSessionUserId();
@@ -34,10 +36,10 @@ export async function POST(req: Request) {
     });
 
     if (existing) {
-      await prisma.favoriteNote.delete({
-        where: { userId_noteId: { userId: resolved, noteId } },
-      });
-      return NextResponse.json({ message: "Removed from favorites", removed: true }, { status: 200 });
+      return NextResponse.json(
+        { message: "Already in favorites", favorite: existing, removed: false },
+        { status: 200 }
+      );
     }
 
     const favorite = await prisma.favoriteNote.create({
@@ -70,7 +72,12 @@ export async function DELETE(req: Request) {
     });
 
     if (!existing) {
-      return NextResponse.json({ message: "Note not in favorites" }, { status: 404 });
+      // Already not favorite — treat as success so stale client state never
+      // surfaces an error toast.
+      return NextResponse.json(
+        { message: "Note not in favorites", removed: true },
+        { status: 200 }
+      );
     }
 
     await prisma.favoriteNote.delete({

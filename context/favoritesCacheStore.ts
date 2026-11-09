@@ -34,6 +34,10 @@ export type FavoriteCanvas = {
 
 interface FavoritesCacheState {
   userId: string | null;
+  // Which user the `status` flags belong to. Kept separate from `userId`
+  // because `userId` is also set by setFavorites(), which loads the full lists
+  // without necessarily hydrating the per-note flags first.
+  statusUserId: string | null;
   // Which user the `notes`/`canvases` lists belong to. Kept separate from
   // `userId` because `userId` is also set by setStatus(), which only caches
   // favorite flags and does not load the full lists.
@@ -63,18 +67,27 @@ interface FavoritesCacheState {
 // to it does not refetch every time.
 export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
   userId: null,
+  statusUserId: null,
   listsUserId: null,
   status: {},
   notes: [],
   canvases: [],
   fetchedAt: 0,
-  setStatus: (userId, status) => set({ userId, status }),
+  setStatus: (userId, status) => set({ userId, statusUserId: userId, status }),
   toggle: (noteId, value) =>
     set((s) => ({ status: { ...s.status, [noteId]: value } })),
   setFavorites: (userId, notes, canvases) =>
     set({
       userId,
+      // The favorites endpoint returns the complete list, so the flags can be
+      // rebuilt from it. This keeps the star state in sync no matter which
+      // fetch (sidebar, favorites page, notes page) resolves first.
+      statusUserId: userId,
       listsUserId: userId,
+      status: notes.reduce<Record<string, boolean>>((acc, favorite) => {
+        acc[favorite.noteId] = true;
+        return acc;
+      }, {}),
       notes,
       canvases,
       fetchedAt: Date.now(),
@@ -94,13 +107,19 @@ export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
   addNote: (userId, fav) =>
     set((state) =>
       state.userId === userId
-        ? { notes: [fav, ...state.notes.filter((n) => n.noteId !== fav.noteId)] }
+        ? {
+            notes: [fav, ...state.notes.filter((n) => n.noteId !== fav.noteId)],
+            status: { ...state.status, [fav.noteId]: true },
+          }
         : state
     ),
   removeNote: (userId, noteId) =>
     set((state) =>
       state.userId === userId
-        ? { notes: state.notes.filter((n) => n.noteId !== noteId) }
+        ? {
+            notes: state.notes.filter((n) => n.noteId !== noteId),
+            status: { ...state.status, [noteId]: false },
+          }
         : state
     ),
   addCanvas: (userId, fav) =>
@@ -123,6 +142,7 @@ export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
   reset: () =>
     set({
       userId: null,
+      statusUserId: null,
       listsUserId: null,
       status: {},
       notes: [],
@@ -134,6 +154,7 @@ export const useFavoritesCacheStore = create<FavoritesCacheState>((set) => ({
 export function resetFavoritesCache() {
   useFavoritesCacheStore.setState({
     userId: null,
+    statusUserId: null,
     listsUserId: null,
     status: {},
     notes: [],
