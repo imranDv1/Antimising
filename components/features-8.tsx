@@ -27,7 +27,7 @@ export default function FeaturesSection() {
                   </span>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-semibold">
-                  Customizable
+                  Rich text
                 </h2>
               </CardContent>
             </Card>
@@ -90,8 +90,8 @@ export default function FeaturesSection() {
                     Secure by default
                   </h2>
                   <p className="text-foreground">
-                    Notes, passwords, and canvases are encrypted at rest — your
-                    workspace is private by design.
+                    Note bodies, canvas content, and passwords are encrypted at
+                    rest — your workspace stays private.
                   </p>
                 </div>
               </CardContent>
@@ -182,11 +182,11 @@ export default function FeaturesSection() {
                 </div>
                 <div className="relative z-10 mt-14 space-y-2 text-center">
                   <h2 className="text-lg font-medium transition">
-                    Find anything, instantly
+                    Search your notes
                   </h2>
                   <p className="text-foreground">
-                    Lightning-fast search across titles, tags, and note content
-                    — no more digging through folders.
+                    Search titles, note content, and tags as you type — no
+                    folders to dig through.
                   </p>
                 </div>
               </CardContent>
@@ -202,8 +202,8 @@ export default function FeaturesSection() {
                       Password manager
                     </h2>
                     <p className="text-foreground">
-                      Store passwords and secrets in an encrypted vault that
-                      only you can unlock.
+                      Save logins and secrets in an encrypted vault that only
+                      your account can access.
                     </p>
                   </div>
                 </div>
@@ -264,11 +264,11 @@ export default function FeaturesSection() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="text-lg font-medium transition">
-                      Share notes with anyone
+                      Share notes with people you choose
                     </h2>
                     <p className="text-foreground">
-                      Collaborate with teammates — share a note and they always
-                      see the latest version.
+                      Share a note with another AntiMising user and give them
+                      view-only or edit access.
                     </p>
                   </div>
                 </div>

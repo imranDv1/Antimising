@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Lock, Search, Settings, Sparkles } from "lucide-react";
+import { Box, Frame, Lock, Search, Settings } from "lucide-react";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 
 export function GlowingEffectDemoSecond() {
@@ -13,35 +13,35 @@ export function GlowingEffectDemoSecond() {
         area="md:[grid-area:1/1/2/7] xl:[grid-area:1/1/2/5]"
         icon={<Box className="h-4 w-4 text-black dark:text-neutral-400" />}
         title="Welcome to AntiMising"
-        description="A modern note-taking platform powered by Gemini AI, designed to help you think, organize, and create effortlessly."
+        description="A modern workspace for notes, canvas boards, and passwords — encrypted, quick, and there whenever you sign in."
       />
 
       <GridItem
         area="md:[grid-area:1/7/2/13] xl:[grid-area:2/1/3/5]"
         icon={<Settings className="h-4 w-4 text-black dark:text-neutral-400" />}
         title="Smart Organization"
-        description="Your notes are automatically categorized and searchable, letting you focus on ideas—not folders."
+        description="Add tags to your notes and search by title, content, or tag whenever you need to find something."
       />
 
       <GridItem
         area="md:[grid-area:2/1/3/7] xl:[grid-area:1/5/3/8]"
         icon={<Lock className="h-4 w-4 text-black dark:text-neutral-400" />}
         title="Your Privacy Matters"
-        description="All your notes are securely stored and encrypted. Only you have access to what you write."
+        description="Note bodies, canvas content, and passwords are encrypted at rest. Only your account — and anyone you share with — can open them."
       />
 
       <GridItem
         area="md:[grid-area:2/7/3/13] xl:[grid-area:1/8/2/13]"
-        icon={<Sparkles className="h-4 w-4 text-black dark:text-neutral-400" />}
-        title="Powered by Gemini AI"
-        description="Summarize, expand, and generate ideas instantly using Gemini’s intelligent note assistant."
+        icon={<Frame className="h-4 w-4 text-black dark:text-neutral-400" />}
+        title="Infinite Canvas Boards"
+        description="Sketch diagrams and map out ideas on an infinite canvas board that stays beside the notes it belongs to."
       />
 
       <GridItem
         area="md:[grid-area:3/1/4/13] xl:[grid-area:2/8/3/13]"
         icon={<Search className="h-4 w-4 text-black dark:text-neutral-400" />}
-        title="Search Everything Instantly"
-        description="Find notes by keyword, idea, or even concept. AntiMising understands what you mean."
+        title="Search Your Way"
+        description="Find notes by title, content, or tag as you type — no folders or digging required."
       />
     </ul>
   );

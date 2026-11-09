@@ -33,7 +33,9 @@ export default async function Home() {
           Capture, Organize, and Find Your Notes Effortlessly
         </h1>
         <p className="text-muted-foreground text-center text-lg max-w-2xl mx-auto ">
-          Notes, canvas whiteboards, and a password manager in one secure app — write with rich text, tag and search everything, favorite what matters, and share with others, anytime, anywhere.
+          Notes, canvas boards, and a password manager in one secure app — write
+          with rich text, tag and search your notes, save favorites, share with
+          the people you choose, and keep everything encrypted at rest.
         </p>
         <FeaturesSection />
       </div>
@@ -43,26 +45,31 @@ export default async function Home() {
           Why Choose AntiMising?
         </h2>
         <p className="text-lg text-muted-foreground text-center max-w-2xl mx-auto">
-          An AI writing assistant, real-time device sync, and encrypted storage — everything you need for ideas, tasks, and passwords, always at your fingertips.
+          Encrypted storage, favorites and tags to stay organized, sharing with
+          the people you choose, and access from any device you sign in to — all
+          in one workspace for notes, boards, and passwords.
         </p>
       </div>
       <Features10 />
       
       <div className="w-[95%] lg:w-[80%] mx-auto flex flex-col gap-3">
         <h1 className=" text-3xl lg:text-5xl font-bold text-center mt-8 mb-2">
-          Effortless Sync, Exceptional Security
+          Access Anywhere, Encrypted at Rest
         </h1>
         <p className="text-sm text-muted-foreground text-center max-w-2xl mx-auto mb-4">
-          Your notes, canvas boards, and saved passwords stay in sync across all your devices — protected with strong encryption, everywhere and always.
+          Note bodies, canvas content, and saved passwords are encrypted at rest
+          and stored in your account, so they are there whenever you sign in on
+          another device.
         </p>
         <GlowingEffectDemoSecond />
       </div>
       <div className="w-[95%] lg:w-[80%] mx-auto flex flex-col gap-5 mt-16 mb-2">
         <h2 className="text-3xl lg:text-5xl font-bold text-center">
-          Advanced Features for Productive Note-Taking
+          Everything You Need in One Workspace
         </h2>
         <p className="text-lg text-muted-foreground text-center max-w-2xl mx-auto">
-          Rich text editing, tagging, favorites, sharing, an AI note writer, an infinite canvas, and an encrypted password vault — unlock a new level of efficiency with AntiMising.
+          Rich text editing, tags and search, favorites, sharing with view or
+          edit access, an infinite canvas, and an encrypted password vault.
         </p>
       </div>
       <FeaturesSection2/>

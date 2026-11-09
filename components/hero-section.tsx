@@ -3,7 +3,8 @@ import React from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronRight } from "lucide-react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { TextEffect } from "@/components/ui/text-effect";
 import { AnimatedGroup } from "@/components/ui/animated-group";
@@ -52,10 +53,10 @@ function HeroAppPreview() {
   return (
     <AnimatedGroup variants={heroPreviewVariants}>
       <div className="mask-b-from-55% relative -mr-56 mt-8 overflow-hidden px-2 sm:mr-0 sm:mt-12 md:mt-20">
-        <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background relative mx-auto max-w-6xl overflow-hidden border border-primary/40 p-4 shadow-lg shadow-zinc-950/15 ring-1">
+        <div className="inset-shadow-2xs ring-background dark:inset-shadow-white/20 bg-background dark:bg-black relative mx-auto max-w-6xl overflow-hidden border border-primary/40 p-4 shadow-lg shadow-zinc-950/15 ring-1">
           <Image
-            className="bg-background object-cover object-left aspect-15/8 relative hidden  dark:block"
-            src="/Images/Screenshot 2026-10-09 005536.png"
+            className="dark:bg-black object-cover object-left aspect-15/8 relative hidden  dark:block"
+            src="/Images/hero.png"
             alt="app screen"
             width="2700"
             height="1440"
@@ -156,22 +157,39 @@ export default function HeroSection(): React.ReactElement {
             </div>
 
             {sessiom ? (
-              <div className="flex items-center mt-4 justify-center gap-4">
+              <AnimatedGroup
+                variants={{
+                  container: {
+                    visible: {
+                      transition: { staggerChildren: 0.08, delayChildren: 1.1 },
+                    },
+                  },
+                  item: itemVariants,
+                }}
+                className="mx-auto mt-6 flex w-full max-w-7xl items-center justify-center gap-4 px-6"
+              >
                 <Link
                   href="/dashboard"
-                  className={buttonVariants({ variant: "default" })}
+                  className={cn(
+                    buttonVariants({ variant: "default" }),
+                    "group gap-1.5 transition-transform duration-200 hover:-translate-y-0.5"
+                  )}
                 >
-                  {" "}
-                  continue to Dashboard
+                  Continue to Dashboard
+                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                 </Link>
                 <Link
                   href="https://x.com/imrandv1"
                   target="_blank"
-                  className={buttonVariants({ variant: "secondary" })}
+                  rel="noreferrer"
+                  className={cn(
+                    buttonVariants({ variant: "secondary" }),
+                    "transition-transform duration-200 hover:-translate-y-0.5"
+                  )}
                 >
                   Follow me on X
                 </Link>
-              </div>
+              </AnimatedGroup>
             ) : null}
 
             <HeroAppPreview />

@@ -17,30 +17,27 @@ import { cn } from "@/lib/tiptap-utils";
 
 const FREE_FEATURES = [
   "Up to 10 notes",
-  "10,000 characters per note",
+  "Notes up to 10,000 characters",
   "Up to 3 images per note",
   "Up to 10 saved passwords",
   "Up to 3 canvas boards",
-  "Rich text formatting (bold, italics, headings, checklists, and more)",
-  "Organize notes with folders & tags",
-  "Instant search within your notes",
-  "Cross-device sync (up to 2 devices)",
-  "Export your notes (Markdown, PDF)",
-  "Secure & private by default",
+  "Rich text formatting (headings, checklists, highlights, images, and more)",
+  "Organize notes with tags",
+  "Search notes by title, content, and tag",
+  "Access your notes from any device you sign in to",
+  "Share notes with view or edit access",
+  "Favorites pinned to the top of your notes",
+  "Encrypted notes, boards, and passwords at rest",
+  "Light and dark themes",
 ];
 
 const PRO_FEATURES = [
   "Everything in Free plan",
   "Unlimited notes",
-  "50,000 characters per note",
+  "Notes up to 50,000 characters",
   "Up to 10 images per note",
-  "Unlimited password manager entries",
+  "Unlimited saved passwords",
   "Unlimited canvas boards",
-  "AI-powered note writer & smart suggestions",
-  "Advanced search (semantic/AI search, filters)",
-  "Unlimited device sync",
-  "Note version history & recovery",
-  "Priority support via email/Discord",
 ];
 
 export default function PricingClient({
@@ -93,7 +90,7 @@ export default function PricingClient({
           <p>
             Our plans are simple. Start for free, or unlock even more
             possibilities with Pro. <br />
-            Designed for note-takers, thinkers, teams, and creators.
+            Designed for note-takers, thinkers, and creators.
           </p>
         </div>
 

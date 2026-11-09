@@ -15,8 +15,8 @@ export default function Features10() {
             <CardHeader className="pb-3">
               <CardHeading
                 icon={MapIcon}
-                title="Powerful Search & Quick Navigation"
-                description="Easily find and jump to any note with our lightning-fast global search. AntiMising helps you stay organized and always find what you need."
+                title="Search Across Your Notes"
+                description="Find notes by title, content, or tag from the notes page  then open the one you need."
               />
             </CardHeader>
 
@@ -41,8 +41,8 @@ export default function Features10() {
             <CardHeader className="pb-3">
               <CardHeading
                 icon={Calendar}
-                title="Instant Sync Across Devices"
-                description="Edit your notes anywhere—changes appear immediately across all your devices. AntiMising keeps your knowledge always up-to-date."
+                title="Access From Any Device"
+                description="Sign in from another browser or device and your saved notes, boards, and passwords are there."
               />
             </CardHeader>
 
@@ -52,7 +52,7 @@ export default function Features10() {
                   <DualModeImage
                     darkSrc="/Images/origin-cal-dark.webp"
                     lightSrc="/Images/origin-cal.webp"
-                    alt="Sync illustration"
+                    alt="Your workspace on any device"
                     width={1207}
                     height={929}
                   />
@@ -63,12 +63,12 @@ export default function Features10() {
 
           <FeatureCard className="p-6 lg:col-span-2">
             <p className="mx-auto my-6 max-w-md text-balance text-center text-2xl font-semibold">
-              Effortless notes, organized and synced — AntiMising.
+              Effortless notes, organized and encrypted — AntiMising.
             </p>
 
             <div className="flex justify-center gap-6 overflow-hidden">
               <CircularUI
-                label="Multi-Platform"
+                label="Works in your browser"
                 circles={[{ pattern: "border" }, { pattern: "border" }]}
               />
 
@@ -78,12 +78,12 @@ export default function Features10() {
               />
 
               <CircularUI
-                label="Real-Time Sync"
+                label="Account Access"
                 circles={[{ pattern: "primary" }, { pattern: "none" }]}
               />
 
               <CircularUI
-                label="Privacy First"
+                label="Encrypted at rest"
                 circles={[{ pattern: "primary" }, { pattern: "none" }]}
                 className="hidden sm:block"
               />

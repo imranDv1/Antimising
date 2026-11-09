@@ -1,6 +1,6 @@
 "use client";
 import { Logo } from "@/components/logo";
-import { Activity, Map as MapIcon, MessageCircle } from "lucide-react";
+import { Map as MapIcon, MessageCircle, PenTool } from "lucide-react";
 import DottedMap from "dotted-map";
 import { Area, AreaChart, CartesianGrid } from "recharts";
 import {
@@ -23,16 +23,15 @@ export default function FeaturesSection2() {
             </span>
 
             <p className="mt-8 text-2xl font-semibold">
-              All your notes, ideas, and lists in one secure, instantly
-              accessible place. Effortlessly search, tag, and organize your
-              thoughts with AntiMising.
+              All your notes, ideas, and checklists in one secure, searchable
+              place. Tag and organize your thoughts with AntiMising.
             </p>
           </div>
 
           <div aria-hidden className="relative">
             <div className="absolute inset-0 z-10 m-auto size-fit">
               <div className="rounded-(--radius) bg-background z-1 dark:bg-muted relative flex size-fit w-fit items-center gap-2 border px-3 py-1 text-xs font-medium shadow-md shadow-zinc-950/5">
-                <span className="text-lg">📝</span> All notes synced
+                <span className="text-lg">📝</span> Saved to your account
               </div>
               <div className="rounded-(--radius) bg-background absolute inset-2 -bottom-2 mx-auto border px-3 py-4 text-xs font-medium shadow-md shadow-zinc-950/5 dark:bg-zinc-900"></div>
             </div>
@@ -48,12 +47,12 @@ export default function FeaturesSection2() {
           <div className="relative z-10">
             <span className="text-muted-foreground flex items-center gap-2">
               <MessageCircle className="text-primary size-4" />
-              Direct help & support
+              Questions &amp; feedback
             </span>
 
             <p className="my-8 text-2xl font-semibold">
-              Got a question or need help? Reach us anytime — our team is always
-              here to support your workflow with AntiMising.
+              Got a question or found something that could be better? Reach out
+              on X and we&apos;ll do our best to help.
             </p>
           </div>
           <div aria-hidden className="flex flex-col gap-8">
@@ -67,15 +66,15 @@ export default function FeaturesSection2() {
                 </span>
               </div>
               <div className="rounded-(--radius) bg-background mt-1.5 w-3/5 border p-3 text-xs">
-                Hi AntiMising, I’d like to know how to backup my notes?
+                Hi AntiMising, how do I share a note with someone?
               </div>
             </div>
 
             <div>
               <div className="rounded-(--radius) mb-1 ml-auto w-3/5 bg-primary p-3 text-xs text-white">
-                Hello! Go to <strong>Settings &gt; Backup</strong> to export or
-                sync your notes across devices. Let us know if you need anything
-                else!
+                Open the note and click <strong>Share</strong>. Search for a
+                registered AntiMising user by name or email, then pick{" "}
+                <strong>Can view</strong> or <strong>Can edit</strong>.
               </div>
               <span className="text-muted-foreground block text-right text-xs">
                 Now
@@ -83,24 +82,24 @@ export default function FeaturesSection2() {
             </div>
           </div>
         </div>
-        {/* Uptime / Sync Guarantee */}
+        {/* One workspace tagline */}
         <div className="col-span-full border-y p-12">
           <p className="text-center text-4xl font-semibold lg:text-7xl">
             Notes, Canvas &amp; Passwords in One Place
           </p>
         </div>
-        {/* Activity/Usage Feed Feature */}
+        {/* Canvas feature */}
         <div className="relative col-span-full">
           <div className="absolute z-10 max-w-lg px-6 pr-12 pt-6 md:px-12 md:pt-12">
             <span className="text-muted-foreground flex items-center gap-2">
-              <Activity className="text-primary size-4" />
-              AI writing assistant
+              <PenTool className="text-primary size-4" />
+              Infinite canvas
             </span>
 
             <p className="my-8 text-2xl font-semibold">
-              Draft, summarize, and polish any note with{" "}
-              <br className="flex md:hidden" /> the built-in AI assistant{" "}
-              <br className="flex md:hidden" /> right where you write.
+              Sketch diagrams and map out ideas on{" "}
+              <br className="flex md:hidden" /> an endless canvas board that{" "}
+              <br className="flex md:hidden" /> lives next to your notes.
             </p>
           </div>
           <MonitoringChart />
