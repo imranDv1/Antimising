@@ -68,6 +68,27 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
   const [liveWidth, setLiveWidth] = React.useState<number | null>(null)
   const liveWidthRef = React.useRef<number | null>(null)
 
+  // Tiptap's React node views only re-render on selection changes, so flipping
+  // edit mode off with `editor.setEditable(false)` leaves this component (and
+  // any open crop UI) mounted and interactive. Re-render whenever the editable
+  // state actually changes.
+  const [, forceRender] = React.useReducer((n: number) => n + 1, 0)
+  const editableRef = React.useRef(editor.isEditable)
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      if (editableRef.current === editor.isEditable) return
+      editableRef.current = editor.isEditable
+      forceRender()
+    }
+    editor.on("update", handleUpdate)
+    return () => {
+      editor.off("update", handleUpdate)
+    }
+  }, [editor])
+
+  const isEditable = editor.isEditable
+
   const src = node.attrs.src as string
 
   const width = parseSizeAttr(node.attrs.width)
@@ -88,7 +109,20 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     ]
   )
 
-  const showHandles = selected && editor.isEditable
+  const showHandles = selected && isEditable
+
+  // Leaving edit mode must also tear down any in-progress crop or resize so
+  // the document can't be changed while read-only.
+  React.useEffect(() => {
+    if (isEditable) return
+    resizeRef.current = null
+    cropDragRef.current = null
+    liveWidthRef.current = null
+    setActiveResize(null)
+    setLiveWidth(null)
+    setCropping(false)
+    setCrop(null)
+  }, [isEditable])
 
   const measure = React.useCallback(() => {
     const img = imgRef.current
@@ -225,6 +259,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
   }
 
   const startCropping = () => {
+    if (!editor.isEditable) return
     setCrop({ ...committed })
     setCropping(true)
   }
@@ -251,6 +286,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
 
   const handleCropDown =
     (handle: CropHandle | "move") => (event: React.PointerEvent<HTMLElement>) => {
+      if (!editor.isEditable) return
       const box = cropBoxRef.current
       if (!box) return
       event.preventDefault()
@@ -268,6 +304,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
     }
 
   const handleCropMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (!editor.isEditable) return
     const drag = cropDragRef.current
     if (!drag) return
     event.preventDefault()
@@ -359,16 +396,17 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
   const displayWidth = width ?? (height ? height * committedAspect : natural.w)
   const fullWidth = displayWidth / committed.w
   const activeCrop = crop ?? committed
+  const cropActive = cropping && isEditable
 
   return (
     <NodeViewWrapper
       className="tiptap-image-node"
       style={{
-        width: `${liveWidth ?? (cropping ? fullWidth : displayWidth)}px`,
+        width: `${liveWidth ?? (cropActive ? fullWidth : displayWidth)}px`,
         maxWidth: "100%",
       }}
     >
-      {cropping ? (
+      {cropActive ? (
         <div
           ref={cropBoxRef}
           className="tiptap-image-crop-edit"
@@ -455,7 +493,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
         </div>
       )}
 
-      {showHandles && !cropping && (
+      {showHandles && !cropActive && (
         <button
           type="button"
           className="tiptap-image-crop-button"
@@ -469,7 +507,7 @@ export const ResizableImageView: React.FC<NodeViewProps> = ({
       )}
 
       {showHandles &&
-        !cropping &&
+        !cropActive &&
         RESIZE_HANDLES.map((handle) => (
           <span
             key={handle}
