@@ -1,12 +1,10 @@
 "use client";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "./ThemeToggle";
-import { usePathname } from "next/navigation";
-import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
-import * as React from "react";
-import { authClient } from "@/lib/auth-client";
 import { useNoteBodyCacheStore } from "@/context/noteBodyCacheStore";
+import { authClient } from "@/lib/auth-client";
+import { usePathname } from "next/navigation";
+import * as React from "react";
 
 export function SiteHeader() {
   const fullpath = usePathname();
@@ -61,7 +59,7 @@ export function SiteHeader() {
   }, [fullpath, userId]);
 
   return (
-    <header className="flex h-(--header-height) min-w-0 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+    <header className="flex h-(--header-height) min-w-0 shrink-0 items-center gap-2 bg-white dark:bg-background border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
       <div className="flex w-full min-w-0 items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1 shrink-0" />
         <Separator

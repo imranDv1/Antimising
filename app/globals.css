@@ -92,7 +92,7 @@
     transform: translate(-50%, -50%) scale(0.9);}}}
 
 :root {
-  --background: oklch(1 0 0);
+  --background: #F6F6F6;
   --foreground: oklch(0.1450 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.1450 0 0);
@@ -116,7 +116,7 @@
   --chart-3: oklch(0.5500 0.2200 263);
   --chart-4: oklch(0.4900 0.2200 264);
   --chart-5: oklch(0.4200 0.1800 266);
-  --sidebar: oklch(0.9850 0 0);
+  --sidebar: oklch(100% 0.00011 271.152);
   --sidebar-foreground: oklch(0.1450 0 0);
   --sidebar-primary: oklch(0.2050 0 0);
   --sidebar-primary-foreground: oklch(0.9850 0 0);

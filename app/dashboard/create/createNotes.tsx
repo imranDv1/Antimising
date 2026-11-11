@@ -737,13 +737,13 @@ const CreateNotesPage = ({
               <Button
                 variant="outline"
                 onClick={() => setSelectionMode(true)}
-                className="shrink-0"
+                className="shrink-0 dark:bg-background bg-white shadow-none"
               >
-                <ListChecks className="mr-1.5 size-4" /> Select
+                <ListChecks className="mr-1.5 size-4 " /> Select
               </Button>
               <Button
                 onClick={openDialog}
-                className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+                className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 shadow-none"
               >
                 <FilePlus2 className="mr-1.5 size-4" /> New Note
               </Button>
@@ -785,7 +785,7 @@ const CreateNotesPage = ({
             placeholder="Search notes…"
             value={searchValue}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-10 pl-9 pr-9"
+            className="h-10 pl-9 pr-9 bg-white"
           />
           {searchValue && (
             <button

@@ -56,7 +56,7 @@ export function NavMain({
                   asChild
                   className={`flex items-center gap-2 duration-200 p-2${
                     isActive
-                      ? "  dark:bg-[#212124] border dark:border-[#404043] shadow"
+                      ? " dark:bg-[#212124] border dark:border-[#404043] "
                       : "hover:bg-muted/50 text-muted-foreground"
                   }`}
                 >

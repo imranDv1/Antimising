@@ -88,7 +88,7 @@ export const NoteCard = ({
     <div
       onClick={selectionMode ? () => onToggleSelect?.(note.id) : undefined}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-none border border-border bg-card/95 text-card-foreground shadow-sm transition-all hover:shadow-md dark:bg-card/90",
+        "group relative flex flex-col overflow-hidden rounded-none border border-border bg-card/95 text-card-foreground shadow-none transition-all cursor-pointer dark:bg-card/90",
         selectionMode && "cursor-pointer",
         selectionMode && selected && "border-primary bg-primary/5 ring-1 ring-primary"
       )}

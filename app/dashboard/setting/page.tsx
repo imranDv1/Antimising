@@ -120,7 +120,7 @@ const Page = () => {
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 mt-4">
+    <div className="w-full flex flex-col gap-6 mt-4 pb-10">
       {/* ── Header (same style as the other pages) ─────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
