@@ -743,7 +743,7 @@ const CreateNotesPage = ({
               </Button>
               <Button
                 onClick={openDialog}
-                className="shrink-0 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 shadow-none"
+                className="shrink-0 bg-primary font-semibold text-primary-foreground  hover:bg-primary/90 shadow-none"
               >
                 <FilePlus2 className="mr-1.5 size-4" /> New Note
               </Button>
