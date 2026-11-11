@@ -1,6 +1,7 @@
 "use server";
 import { auth } from "@/lib/auth";
 import arcjet, { validateEmail } from "@/lib/arcjet";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 import { request } from "@arcjet/next";
 import { revalidatePath } from "next/cache";
 
@@ -24,7 +25,17 @@ type SignUpResult =
   | { success: true }
   | { success: false; error: { message: string } };
 
-export async function SignUp(data: SignUpTypes): Promise<SignUpResult> {
+export async function SignUp(
+  data: SignUpTypes,
+  captchaToken?: string
+): Promise<SignUpResult> {
+  if (!captchaToken) {
+    return {
+      success: false,
+      error: { message: "Please complete the captcha verification" },
+    };
+  }
+
   const req = await request();
   const decision = await aj.protect(req, {
     email: data.email,
@@ -32,7 +43,18 @@ export async function SignUp(data: SignUpTypes): Promise<SignUpResult> {
   if (!decision.isAllowed())
     return { success: false, error: { message: "Email is not valid" } };
 
+  const captchaValid = await verifyTurnstileToken(captchaToken);
+  if (!captchaValid) {
+    return {
+      success: false,
+      error: { message: "Captcha verification failed. Please try again." },
+    };
+  }
+
   try {
+    const headers = new Headers();
+    headers.set("x-captcha-response", captchaToken);
+
     await auth.api.signUpEmail({
       body: {
         email: data.email, // user email address
@@ -40,6 +62,7 @@ export async function SignUp(data: SignUpTypes): Promise<SignUpResult> {
         name: data.name, // user display name
         callbackURL: "/dashboard",
       },
+      headers,
     });
     revalidatePath("/signUp");
 

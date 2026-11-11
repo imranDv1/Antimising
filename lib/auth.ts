@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { expo } from "@better-auth/expo";
+import { captcha } from "better-auth/plugins";
 import { after } from "next/server";
 import { prisma } from "./db";
 import { resetPasswordEmailHTML, sendEmail } from "./email";
@@ -35,7 +36,15 @@ export const auth = betterAuth({
 		disableSessionRefresh: false, // Enable auto-extension
 		freshAge: 60 * 15, // 15 minute freshness window
 	},
-  plugins: [expo({}), nextCookies()],
+  plugins: [
+    expo({}),
+    captcha({
+      provider: "cloudflare-turnstile",
+      secretKey: process.env.CLOUDFLARE_TURNSTILE_SECRET!,
+      endpoints: ["/sign-up/email", "/sign-in/email"],
+    }),
+    nextCookies(),
+  ],
 
   socialProviders: {
     google: {

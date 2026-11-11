@@ -15,7 +15,7 @@ const SignUp = () => {
      <Ripple />
     
 
-      <SignUpPage />
+      <SignUpPage siteKey={process.env.CLOUDFLARE_TURNSTILE_SITE_KEY ?? ""} />
     </div>
   );
 };

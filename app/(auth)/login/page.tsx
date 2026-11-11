@@ -14,7 +14,7 @@ const Login = () => {
     <div className="w-full h-screen overflow-hidden flex items-center justify-center relative">
       <Ripple />
 
-      <LoginPage />
+      <LoginPage siteKey={process.env.CLOUDFLARE_TURNSTILE_SITE_KEY ?? ""} />
 
     </div>
   );

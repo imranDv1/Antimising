@@ -20,6 +20,7 @@ import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { TurnstileWidget } from "@/components/cloudflare-turnstile";
 import { SignUp } from "@/server/action";
 
 const formSchema = z.object({
@@ -28,7 +29,7 @@ const formSchema = z.object({
   password: z.string().min(8),
 });
 
-export default function SignUpPage() {
+export default function SignUpPage({ siteKey }: { siteKey?: string }) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,17 +43,33 @@ export default function SignUpPage() {
 
   const [Loading, setLoading] = useState(false);
   const [googlePending, startGoogleTransiton] = useTransition();
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const captchaEnabled = Boolean(siteKey);
+
+  function resetCaptcha() {
+    setCaptchaToken("");
+    setCaptchaReset((value) => value + 1);
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (captchaEnabled && !captchaToken) {
+      toast.error("Please complete the captcha verification");
+      return;
+    }
+
     setLoading(true);
     try {
-      const result = await SignUp(values);
+      const result = await SignUp(values, captchaToken || undefined);
       if (result.success) {
         toast.success("Sign up successful");
       } else {
         toast.error(result.error?.message || "Something went wrong");
+        resetCaptcha();
       }
     } catch {
       toast.error("Unexpected error");
+      resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -80,16 +97,114 @@ export default function SignUpPage() {
       <div className="max-w-92 m-auto h-fit w-full ">
         <div className="p-6">
           <div>
-            <Link href="/" aria-label="go home" className="flex items-center">
-              <LogoIcon />
+            <Link
+              href="/"
+              aria-label="go home"
+              className="flex items-center gap-3"
+            >
+              <LogoIcon className="size-6" />
               <span>AntiMising</span>
             </Link>
-            <h1 className="mb-1 mt-4 text-xl font-semibold">
-              Sign In to AntiMising
-            </h1>
-            <p className="text-muted-foreground">
-              Welcome back! Sign in to continue
-            </p>
+          </div>
+
+          <div className="space-y-6 mt-5">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-8"
+              >
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter your full name" {...field} />
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="m@example.com" {...field} />
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center justify-between">
+                        <FormLabel>password</FormLabel>
+                        <Link href="/forgot-password">
+                          Forget your password
+                        </Link>
+                      </div>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Enter your password"
+                          {...field}
+                        />
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {captchaEnabled && (
+                  <div className="flex justify-center">
+                    <TurnstileWidget
+                      siteKey={siteKey!}
+                      resetSignal={captchaReset}
+                      onVerify={setCaptchaToken}
+                      onExpire={() => setCaptchaToken("")}
+                      onError={() => {
+                        setCaptchaToken("");
+                        toast.error(
+                          "Captcha could not be verified. Please try again.",
+                        );
+                      }}
+                    />
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  className="w-full cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap  text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-md border-[0.5px] border-white/25 shadow-black/20 [&_svg]:drop-shadow-sm not-in-data-[theme=dark]:text-shadow-sm bg-primary ring-1 ring-(--ring-color) [--ring-color:color-mix(in_oklab,var(--color-foreground)15%,var(--color-primary))] text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
+                  disabled={Loading || (captchaEnabled && !captchaToken)}
+                >
+                  {Loading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    "Continue"
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </div>
+
+          <div className="my-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <hr className="border-dashed" />
+            <span className="text-muted-foreground text-xs">
+              Or continue With
+            </span>
+            <hr className="border-dashed" />
           </div>
 
           <div className="mt-6">
@@ -133,88 +248,6 @@ export default function SignUpPage() {
                 </>
               )}
             </Button>
-          </div>
-
-          <div className="my-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <hr className="border-dashed" />
-            <span className="text-muted-foreground text-xs">
-              Or continue With
-            </span>
-            <hr className="border-dashed" />
-          </div>
-
-          <div className="space-y-6">
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8"
-              >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter your full name" {...field} />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="m@example.com" {...field} />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center justify-between">
-                        <FormLabel>password</FormLabel>
-                        <Link href="/forgot-password">Forget your password</Link>
-                      </div>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="Enter your password"
-                          {...field}
-                        />
-                      </FormControl>
-
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap  text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-md border-[0.5px] border-white/25 shadow-black/20 [&_svg]:drop-shadow-sm not-in-data-[theme=dark]:text-shadow-sm bg-primary ring-1 ring-(--ring-color) [--ring-color:color-mix(in_oklab,var(--color-foreground)15%,var(--color-primary))] text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
-                  disabled={Loading}
-                >
-                  {Loading ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      <span>Loading...</span>
-                    </>
-                  ) : (
-                    "Continue"
-                  )}
-                </Button>
-              </form>
-            </Form>
           </div>
         </div>
 
