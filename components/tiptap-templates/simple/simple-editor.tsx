@@ -259,6 +259,44 @@ const normalizeInlineNewlines = (node: JSONContent): JSONContent => {
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/**
+ * Returns the `blob:` image srcs in document order. These are previews for
+ * images that have not been uploaded to the server yet, and their order must
+ * match the order the files are appended to the save request.
+ */
+const collectBlobImageSrcs = (node: JSONContent): string[] => {
+  const srcs: string[] = [];
+  const walk = (current: JSONContent) => {
+    if (
+      current.type === "image" &&
+      typeof current.attrs?.src === "string" &&
+      current.attrs.src.startsWith("blob:")
+    ) {
+      srcs.push(current.attrs.src);
+    }
+    current.content?.forEach(walk);
+  };
+  walk(node);
+  return srcs;
+};
+
+const hasBlobImage = (editor: Editor): boolean => {
+  let found = false;
+  editor.state.doc.descendants((node) => {
+    if (found) return false;
+    if (
+      node.type.name === "image" &&
+      typeof node.attrs.src === "string" &&
+      node.attrs.src.startsWith("blob:")
+    ) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
+};
+
 const textPartToBlocksHtml = (text: string) =>
   text
     .replace(/\r\n?/g, "\n")
@@ -360,7 +398,6 @@ export function SimpleEditor({
   const triggerEditorRefresh = useEditorNotificationStore(
     (state) => state.triggerEditorRefresh
   );
-  const [uploadedFiles, setUploadedFiles] = React.useState<File[]>([]);
   const [edit, setEdit] = React.useState(
     !content ||
       (typeof content === "object" && Object.keys(content).length === 0)
@@ -371,7 +408,10 @@ export function SimpleEditor({
   const isOwner = role === "owner";
 
   const baselineRef = React.useRef<string | null>(null);
-  const uploadedFilesRef = React.useRef<File[]>(uploadedFiles);
+  // Maps preview blob URLs to the original files. Keeping the file per blob URL
+  // (instead of a flat array) means removing an image also removes its pending
+  // upload, so the file order always matches the blob images left in the doc.
+  const uploadedFilesRef = React.useRef<Map<string, File>>(new Map());
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -422,7 +462,7 @@ export function SimpleEditor({
             onProgress,
             signal
           );
-          setUploadedFiles((prev) => [...prev, originalFile]);
+          uploadedFilesRef.current.set(previewUrl, originalFile);
           return previewUrl;
         },
         onError: (error) => console.error("Upload failed:", error),
@@ -520,17 +560,14 @@ export function SimpleEditor({
   }, [edit, editor, canEdit]);
 
   React.useEffect(() => {
-    uploadedFilesRef.current = uploadedFiles;
-  }, [uploadedFiles]);
-
-  React.useEffect(() => {
     if (!editor || baselineRef.current !== null) return;
     baselineRef.current = JSON.stringify(editor.getJSON());
   }, [editor]);
 
   const isDirty = React.useCallback(() => {
     if (!editor) return false;
-    if (uploadedFilesRef.current.length > 0) return true;
+    // Any blob image in the document is a pending upload.
+    if (hasBlobImage(editor)) return true;
     if (baselineRef.current === null) {
       baselineRef.current = JSON.stringify(editor.getJSON());
       return false;
@@ -603,14 +640,29 @@ export function SimpleEditor({
     }
 
     const contentJSON = JSON.stringify(editor.getJSON());
+
+    // Only send files for blob images that are still in the document, in the
+    // same order they appear. Removed images never reach the server, so a new
+    // upload can no longer be replaced by a previously removed file.
+    const blobSrcs = collectBlobImageSrcs(editor.getJSON());
+    const filesToUpload = blobSrcs.map((src) =>
+      uploadedFilesRef.current.get(src)
+    );
+    if (filesToUpload.some((file) => !file)) {
+      toast.error(
+        "Some images could not be found. Please remove and upload them again."
+      );
+      return;
+    }
+
     setSaveLoading(true);
 
     const formData = new FormData();
     formData.append("noteId", noteId);
     formData.append("content", contentJSON);
 
-    for (const file of uploadedFiles) {
-      formData.append("images", file);
+    for (const file of filesToUpload) {
+      formData.append("images", file as File);
     }
 
     try {
@@ -622,8 +674,6 @@ export function SimpleEditor({
 
       if (data.success) {
         toast.success("Note saved!");
-        baselineRef.current = contentJSON;
-        setUploadedFiles([]); // Fix 8: clear uploaded files after successful save to avoid re-uploading
         // Keep the client cache in sync with what was just persisted, so
         // reopening the note shows the new body immediately instead of
         // serving the pre-save cached copy.
@@ -632,10 +682,28 @@ export function SimpleEditor({
             .getState()
             .updateNotebody(noteId, data.notebody, data.updatedAt);
         }
+
+        // Swap the in-memory blob previews for the persisted URLs so a later
+        // save doesn't try to re-upload files that no longer exist.
+        if (data.notebody) {
+          editor.commands.setContent(
+            (data.notebody.content as JSONContent) ?? "",
+            { emitUpdate: false }
+          );
+          baselineRef.current = JSON.stringify(editor.getJSON());
+
+          uploadedFilesRef.current.forEach((_file, url) =>
+            URL.revokeObjectURL(url)
+          );
+          uploadedFilesRef.current.clear();
+        } else {
+          baselineRef.current = contentJSON;
+        }
+
         triggerEditorRefresh();
         setEdit(false); // ✅ الخروج من وضع التعديل بعد الحفظ
       } else {
-        toast.error("Error: " + data.error);
+        toast.error("Error: " + (data.error ?? data.message));
       }
     } catch {
       toast.error("Failed to save. Please check your connection.");

@@ -231,6 +231,16 @@ export async function POST(request: Request) {
     const newImageUrls: string[] = [];
     for (let i = 0; i < blobIndexes.length; ++i) {
       const file = files[i]; // Order of files must match order of blob: in content!
+      if (!file) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Missing image data for an uploaded image. Please remove and upload it again.",
+          },
+          { status: 400 }
+        );
+      }
       const buffer = Buffer.from(await file.arrayBuffer());
       const uploaded = await new Promise<any>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
