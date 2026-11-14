@@ -1,2 +1,17 @@
 patchedDependencies:
   '@tiptap/extension-drag-handle@3.6.1': patches/@tiptap__extension-drag-handle@3.6.1.patch
+
+# pnpm 10 blocks lifecycle scripts by default. These packages ship native
+# binaries (Prisma engines, bcrypt, sharp, Tailwind's oxide, watchers) and
+# must run their install scripts or the app cannot start.
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@tailwindcss/oxide'
+  - bcrypt
+  - core-js
+  - msgpackr-extract
+  - prisma
+  - sharp
+  - unrs-resolver

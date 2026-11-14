@@ -135,6 +135,16 @@ model NoteShare {
   @@map("note_share")
 }
 
+/// Fixed-window counters for the shared rate limiter (see lib/rate-limit.ts).
+/// Kept in the database so the budget is global across serverless instances.
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model Subscription {
   id        String    @id @default(uuid())
   startDate DateTime  @default(now())

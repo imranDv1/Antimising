@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { rateLimit } from "@/lib/rate-limit";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -91,6 +92,15 @@ export async function POST(request: Request) {
     const userId = await getSessionUser();
     if (!userId) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Sharing performs an exact-email account lookup, so it is throttled to
+    // keep an authenticated account from enumerating the user table.
+    if (!(await rateLimit(`canvas-share:${userId}`, 20, 60_000))) {
+      return NextResponse.json(
+        { message: "Too many share attempts. Try again in a minute." },
+        { status: 429 }
+      );
     }
 
     const { canvasId, email, permission } = await request.json();

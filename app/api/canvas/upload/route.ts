@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUserId, unauthorized } from "@/lib/api-auth";
-import { rateLimit } from "@/lib/limits";
+import { rateLimit } from "@/lib/rate-limit";
 import { UTApi } from "uploadthing/server";
 
 // UploadThing serves every public file from the app's own CDN subdomain and
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const userId = await getSessionUserId();
     if (!userId) return unauthorized();
 
-    if (!rateLimit(`canvas-image:${userId}`, 60, 60_000)) {
+    if (!(await rateLimit(`canvas-image:${userId}`, 60, 60_000))) {
       return NextResponse.json(
         { message: "Too many image uploads. Try again in a minute." },
         { status: 429 }

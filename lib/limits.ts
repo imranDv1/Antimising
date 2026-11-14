@@ -80,33 +80,5 @@ export async function withUserScopeLock<T>(
   });
 }
 
-// In-memory fixed-window rate limiter (best-effort per server instance).
-const rateBuckets = new Map<string, number[]>();
-
-export function rateLimit(
-  key: string,
-  max: number,
-  windowMs: number
-): boolean {
-  const now = Date.now();
-  const bucket = (rateBuckets.get(key) ?? []).filter(
-    (t) => now - t < windowMs
-  );
-
-  if (bucket.length >= max) {
-    rateBuckets.set(key, bucket);
-    if (rateBuckets.size > 10_000) pruneRateBuckets(now, windowMs);
-    return false;
-  }
-
-  bucket.push(now);
-  rateBuckets.set(key, bucket);
-  if (rateBuckets.size > 10_000) pruneRateBuckets(now, windowMs);
-  return true;
-}
-
-function pruneRateBuckets(now: number, windowMs: number) {
-  for (const [key, times] of rateBuckets) {
-    if (times.every((t) => now - t >= windowMs)) rateBuckets.delete(key);
-  }
-}
+// Rate limiting lives in lib/rate-limit.ts and is backed by PostgreSQL, so it
+// is shared across serverless instances instead of being per-process.

@@ -5,6 +5,7 @@ import { encryptNoteBody } from "@/lib/note-encryption";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { getPlanLimits } from "@/lib/limits";
+import { rateLimit } from "@/lib/rate-limit";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -114,6 +115,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Autosave fires on a debounce, so the budget is generous — it exists to
+    // stop scripted abuse of the encryption + image upload path, not to throttle
+    // normal editing.
+    if (!(await rateLimit(`note-body:${userIdFromSession}`, 120, 60_000))) {
+      return NextResponse.json(
+        { success: false, message: "Too many saves. Please wait a moment." },
+        { status: 429 }
       );
     }
 

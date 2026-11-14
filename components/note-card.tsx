@@ -6,7 +6,23 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Ban, Check, Loader2, Star, Trash2, Users } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Ban,
+  Check,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Star,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Note = {
@@ -96,6 +112,10 @@ export const NoteCard = ({
   onToggleSelect?: (id: string) => void;
 }) => {
   const isShared = note.permission === "read" || note.permission === "write";
+  const canEdit = !isShared || note.permission === "write";
+  const canDecline = isShared && Boolean(onDecline);
+  const canDelete = !isShared;
+  const isDeleting = deleteLoading === note.id;
 
   return (
     <div
@@ -268,65 +288,67 @@ export const NoteCard = ({
               )}
             </button>
 
-            {!isShared && (
-              <button
-                onClick={() => onEdit(note)}
-                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                Edit
-              </button>
-            )}
-
-            {isShared && note.permission === "write" && (
-              <button
-                onClick={() => onEdit(note)}
-                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                Edit
-              </button>
-            )}
-
             {isShared && note.permission === "read" && (
               <span className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
-              View only
-            </span>
+                View only
+              </span>
             )}
 
-            {isShared && onDecline && (
-              <button
-                type="button"
-                onClick={() => onDecline(note.id)}
-                disabled={declining}
-                title="Reject this share — it will be removed from your account"
-                className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {declining ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Ban className="size-3.5" />
-                )}
-                Reject
-              </button>
-            )}
-
-            {!isShared && (
-              <Tooltip>
-                <TooltipTrigger asChild>
+            {(canEdit || canDecline) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
-                    onClick={() => onDelete(note.id)}
-                    disabled={deleteLoading === note.id}
-                    className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
-                    aria-label="Delete note"
+                    type="button"
+                    aria-label="More actions"
+                    disabled={declining}
+                    className="flex cursor-pointer items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {deleteLoading === note.id ? (
+                    {declining ? (
                       <Loader2 className="size-3.5 animate-spin" />
                     ) : (
-                      <Trash2 className="size-3.5" />
+                      <MoreHorizontal className="size-4" />
                     )}
                   </button>
-                </TooltipTrigger>
-                <TooltipContent>Delete note</TooltipContent>
-              </Tooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  {canEdit && (
+                    <DropdownMenuItem
+                      onSelect={() => onEdit(note)}
+                      className="cursor-pointer gap-2"
+                    >
+                      <Pencil className="size-3.5" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {canDecline && (
+                    <DropdownMenuItem
+                      onSelect={() => onDecline?.(note.id)}
+                      disabled={declining}
+                      className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                    >
+                      <Ban className="size-3.5" />
+                      {declining ? "Rejecting…" : "Reject"}
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => onDelete(note.id)}
+                        disabled={isDeleting}
+                        className="cursor-pointer gap-2 text-destructive focus:text-destructive"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-3.5" />
+                        )}
+                        {isDeleting ? "Deleting…" : "Delete"}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         )}

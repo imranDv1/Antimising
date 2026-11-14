@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FilePlus2, Loader2, Search, X, BookOpen, ArrowLeft, ListChecks, Trash2, Check } from "lucide-react";
+import { FilePlus2, Loader2, Search, X, BookOpen, ArrowLeft, ListChecks, Trash2, Check, Ban } from "lucide-react";
 import {
   Note,
   NoteCard,
@@ -40,6 +40,9 @@ import { useNoteNotificationStore } from "@/context/notesUpateStore";
 import { useFavNotificationStore } from "@/context/updateFavorite";
 import { useFavoritesCacheStore } from "@/context/favoritesCacheStore";
 import { useFavoritesOnTop } from "@/context/notesPrefsStore";
+import { useNotesCacheStore } from "@/context/notesCacheStore";
+import { useSharedCacheStore } from "@/context/sharedCacheStore";
+import { useSharedStore } from "@/context/sharedStore";
 import { CreateNote } from "./action";
 
 // ─── Constants & Types ────────────────────────────────────────────────────────
@@ -337,6 +340,10 @@ const CreateNotesPage = ({
   const [openingNoteId, setOpeningNoteId] = useState<string | null>(null);
   const [favoritesOnTop] = useFavoritesOnTop();
 
+  // Rejecting a share from All Notes: the recipient removes their own access.
+  const [declineTarget, setDeclineTarget] = useState<Note | null>(null);
+  const [declining, setDeclining] = useState(false);
+
   const { isDialogOpen, openDialog, closeDialog } = useDialog();
   const maxTags = 3;
   const { data: session } = authClient.useSession();
@@ -356,6 +363,7 @@ const CreateNotesPage = ({
 
   const triggerRefresh = useNoteNotificationStore((s) => s.triggerRefresh);
   const triggerFavRefresh = useFavNotificationStore((s) => s.triggerFavRefresh);
+  const triggerSharedRefresh = useSharedStore((s) => s.triggerSharedRefresh);
 
   // ── Forms ──────────────────────────────────────────────────────────────────
 
@@ -675,6 +683,56 @@ const CreateNotesPage = ({
     router.push(`/dashboard/notes/${noteId}`);
   };
 
+  // ── Reject a note shared with me ──────────────────────────────────────────
+  const handleRejectClick = (noteId: string) => {
+    setDeclineTarget(notes.find((n) => n.id === noteId) ?? null);
+  };
+
+  const handleConfirmDecline = async () => {
+    if (!declineTarget || !userId) return;
+    setDeclining(true);
+    const noteId = declineTarget.id;
+    try {
+      const res = await fetch(
+        `/api/shared-notes?noteId=${encodeURIComponent(noteId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || "Failed to reject share");
+
+      // Remove it everywhere without a refetch: All Notes, the Shared-with-me
+      // cache, and the sidebar badge.
+      useNotesCacheStore.getState().removeNote(noteId);
+      useSharedCacheStore.getState().remove(noteId);
+
+      // A rejected note must not linger in favorites.
+      if (useFavoritesCacheStore.getState().status[noteId]) {
+        useFavoritesCacheStore.getState().removeNote(userId, noteId);
+        triggerFavRefresh();
+      }
+
+      triggerSharedRefresh();
+      toast.success("Share rejected");
+      setDeclineTarget(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reject share"
+      );
+    } finally {
+      setDeclining(false);
+    }
+  };
+
+  // Shared notes open in the note editor; the title/description dialog is
+  // owner-only.
+  const handleEditNote = (note: Note) => {
+    if (note.permission === "read" || note.permission === "write") {
+      handleOpenNote(note.id);
+    } else {
+      handleEditClick(note);
+    }
+  };
+
   const handleBackToNotes = () => {
     setSearch("");
     setHasSearched(false);
@@ -883,9 +941,11 @@ const CreateNotesPage = ({
               openingNoteId={openingNoteId}
               onFavorite={handleFavoriteToggle}
               onDelete={handleDeleteClick}
-              onEdit={handleEditClick}
+              onEdit={handleEditNote}
               onTagClick={handleCategorySearch}
               onOpen={handleOpenNote}
+              onDecline={handleRejectClick}
+              declining={declining && declineTarget?.id === note.id}
               clickableTags={!isFiltered}
               selectionMode={selectionMode && note.permission === "owner"}
               selected={selectedIds.includes(note.id)}
@@ -998,6 +1058,55 @@ const CreateNotesPage = ({
           >
             Cancel
           </button>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reject-share confirmation ─────────────────────────────────────── */}
+      <Dialog
+        open={!!declineTarget}
+        onOpenChange={(open) => {
+          if (!open && !declining) setDeclineTarget(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-sm"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Ban className="size-4 text-destructive" />
+              Reject this shared note?
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-muted-foreground">
+              {declineTarget
+                ? `“${declineTarget.title}” will be removed from your account and you will lose access to it. The owner keeps their own copy.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={declining}
+              onClick={() => setDeclineTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={declining}
+              onClick={handleConfirmDecline}
+            >
+              {declining ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Rejecting…
+                </span>
+              ) : (
+                "Reject"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

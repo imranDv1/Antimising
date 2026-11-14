@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
@@ -15,6 +14,29 @@ function resolveUserId(
   return sessionUserId;
 }
 
+/**
+ * A favorite may only exist for a note the caller can currently see: either
+ * their own note, or one that is still shared with them. Without this check any
+ * authenticated user could favorite an arbitrary note id and read its metadata.
+ */
+async function hasNoteAccess(
+  noteId: string,
+  userId: string
+): Promise<boolean> {
+  const note = await prisma.note.findUnique({
+    where: { id: noteId },
+    select: { userId: true },
+  });
+  if (!note) return false;
+  if (note.userId === userId) return true;
+
+  const share = await prisma.noteShare.findUnique({
+    where: { noteId_userId: { noteId, userId } },
+    select: { id: true },
+  });
+  return Boolean(share);
+}
+
 // Add a note to the user's favorites. Idempotent: adding an already-favorited
 // note keeps it favorited instead of toggling it off, so a client with a stale
 // star state can never accidentally remove the favorite.
@@ -24,12 +46,18 @@ export async function POST(req: Request) {
     if (!sessionUserId) return unauthorized();
 
     const { userId, noteId } = await req.json();
-    if (!noteId) {
+    if (!noteId || typeof noteId !== "string") {
       return NextResponse.json({ error: "Missing noteId" }, { status: 400 });
     }
 
     const resolved = resolveUserId(sessionUserId, userId);
     if (resolved instanceof NextResponse) return resolved;
+
+    if (!(await hasNoteAccess(noteId, resolved))) {
+      // Same response for "does not exist" and "not yours" so note ids cannot
+      // be probed for existence.
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
 
     const existing = await prisma.favoriteNote.findUnique({
       where: { userId_noteId: { userId: resolved, noteId } },
@@ -47,9 +75,9 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ message: "Added to favorites", favorite, removed: false }, { status: 201 });
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: err.message || "Internal Server Error" }, { status: 500 });
+  } catch (err) {
+    console.error("Favorite create failed:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -60,7 +88,7 @@ export async function DELETE(req: Request) {
     if (!sessionUserId) return unauthorized();
 
     const { userId, noteId } = await req.json();
-    if (!noteId) {
+    if (!noteId || typeof noteId !== "string") {
       return NextResponse.json({ error: "Missing noteId" }, { status: 400 });
     }
 
@@ -80,14 +108,16 @@ export async function DELETE(req: Request) {
       );
     }
 
+    // Scoped delete: the row is identified by session user + note id, so this
+    // can only ever remove the caller's own favorite.
     await prisma.favoriteNote.delete({
       where: { userId_noteId: { userId: resolved, noteId } },
     });
 
     return NextResponse.json({ message: "Removed from favorites" }, { status: 200 });
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: err.message || "Internal Server Error" }, { status: 500 });
+  } catch (err) {
+    console.error("Favorite delete failed:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -104,13 +134,42 @@ export async function GET(req: Request) {
     const favorites = await prisma.favoriteNote.findMany({
       where: { userId: resolved },
       include: {
-        note: true,
+        note: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            createdAt: true,
+            updatedAt: true,
+            userId: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(favorites, { status: 200 });
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: err.message || "Internal Server Error" }, { status: 500 });
+    // Access can be revoked after a note was favorited. Drop favorites whose
+    // share is gone so revoked notes stop appearing in the list.
+    const sharedNoteIds = new Set(
+      (
+        await prisma.noteShare.findMany({
+          where: {
+            userId: resolved,
+            noteId: { in: favorites.map((favorite) => favorite.noteId) },
+          },
+          select: { noteId: true },
+        })
+      ).map((share) => share.noteId)
+    );
+
+    const visible = favorites.filter(
+      (favorite) =>
+        favorite.note.userId === resolved || sharedNoteIds.has(favorite.noteId)
+    );
+
+    return NextResponse.json(visible, { status: 200 });
+  } catch (err) {
+    console.error("Favorite list failed:", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

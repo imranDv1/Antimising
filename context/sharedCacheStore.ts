@@ -9,6 +9,7 @@ interface SharedCacheState {
   fetchedAt: number;
   set: (userId: string, notes: Note[], unreadCount: number) => void;
   markRead: (noteId: string) => void;
+  remove: (noteId: string) => void;
   clear: () => void;
 }
 
@@ -32,6 +33,18 @@ export const useSharedCacheStore = create<SharedCacheState>((set) => ({
           n.id === noteId ? { ...n, isRead: true } : n
         ),
         unreadCount: Math.max(0, state.unreadCount - 1),
+      };
+    }),
+  remove: (noteId) =>
+    set((state) => {
+      const target = state.notes.find((n) => n.id === noteId);
+      if (!target) return state;
+      return {
+        notes: state.notes.filter((n) => n.id !== noteId),
+        unreadCount: Math.max(
+          0,
+          state.unreadCount - (target.isRead ? 0 : 1)
+        ),
       };
     }),
   clear: () =>

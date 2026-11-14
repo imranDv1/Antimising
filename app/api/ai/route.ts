@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { streamNoteBody } from "@/lib/openAi";
 import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
-import { getPlanLimits, rateLimit } from "@/lib/limits";
+import { getPlanLimits } from "@/lib/limits";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     // Abuse/rate protection applies to all users, including Pro.
-    if (!rateLimit(`ai:${sessionUserId}`, 10, 60_000)) {
+    if (!(await rateLimit(`ai:${sessionUserId}`, 10, 60_000))) {
       return NextResponse.json(
         { message: "Too many AI requests. Please wait a minute and try again." },
         { status: 429 }
