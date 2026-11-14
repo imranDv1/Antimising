@@ -288,11 +288,11 @@ export const NoteCard = ({
               )}
             </button>
 
-            {isShared && note.permission === "read" && (
+            {/* {isShared && note.permission === "read" && (
               <span className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
                 View only
               </span>
-            )}
+            )} */}
 
             {(canEdit || canDecline) && (
               <DropdownMenu>
