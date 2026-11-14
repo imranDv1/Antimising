@@ -5,7 +5,7 @@ export default function ContentSection() {
     <section className="py-16 md:py-32">
       <div className="mx-auto max-w-6xl space-y-8 px-6 md:space-y-16">
         <h2 className="relative z-10 max-w-xl text-4xl font-medium lg:text-5xl">
-          Stay organized and never lose your thoughts with AntiMising.
+          Stay organized and never lose your thoughts with Rinsign.
         </h2>
         <div className="grid gap-6 sm:grid-cols-2 md:gap-12 lg:gap-24">
           <div className="relative mb-6 sm:mb-0">
@@ -13,14 +13,14 @@ export default function ContentSection() {
               <Image
                 src="/Images/bg.jpeg"
                 className="hidden rounded-[15px] dark:block max-h-[400px] object-cover "
-                alt="antimising notes dark illustration"
+                alt="Rinsign notes dark illustration"
                 width={1207}
                 height={929}
               />
               <Image
                 src="/Images/bg.jpeg"
                 className=" rounded-[15px] dark:hidden  max-h-[400px] object-cover "
-                alt="antimising notes light illustration"
+                alt="Rinsign notes light illustration"
                 width={1207}
                 height={929}
               />
@@ -29,12 +29,12 @@ export default function ContentSection() {
 
           <div className="relative space-y-4">
             <p className="text-muted-foreground">
-              AntiMising is your all-in-one platform to capture, organize,
-              and revisit your ideas.
+              Rinsign is your all-in-one platform to capture, organize, and
+              revisit your ideas.
               <span className="text-accent-foreground font-bold">
                 Whether jotting quick memos or building long-term knowledge
               </span>
-              , AntiMising adapts to your workflow.
+              , Rinsign adapts to your workflow.
             </p>
             <p className="text-muted-foreground">
               Keep your notes accessible and beautifully organized — anywhere,
@@ -45,7 +45,7 @@ export default function ContentSection() {
             <div className="pt-6">
               <blockquote className="border-l-4 pl-4">
                 <p>
-                  AntiMising has transformed how I manage my ideas. It&apos;s
+                  Rinsign has transformed how I manage my ideas. It&apos;s
                   intuitive, fast, and reliable — perfect for both quick notes
                   and deep journaling.
                 </p>

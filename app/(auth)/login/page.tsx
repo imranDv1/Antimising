@@ -6,7 +6,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Sign in to AntiMising to access your notes, canvases, and passwords.",
+  description:
+    "Sign in to Rinsign to access your notes, canvases, and passwords.",
 };
 
 const Login = () => {
@@ -15,7 +16,6 @@ const Login = () => {
       <Ripple />
 
       <LoginPage siteKey={process.env.CLOUDFLARE_TURNSTILE_SITE_KEY ?? ""} />
-
     </div>
   );
 };

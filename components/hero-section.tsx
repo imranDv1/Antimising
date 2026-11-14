@@ -130,7 +130,10 @@ export default function HeroSection(): React.ReactElement {
                     },
                   }}
                 >
-                  <Badge variant="outline"> <ChevronRight/> Introducing the infinite Canvas whiteboard</Badge>
+                  <Badge variant="outline">
+                    {" "}
+                    <ChevronRight /> Introducing the infinite Canvas whiteboard
+                  </Badge>
                 </AnimatedGroup>
 
                 <TextEffect
@@ -149,7 +152,7 @@ export default function HeroSection(): React.ReactElement {
                   as="p"
                   className="mx-auto mt-8 max-w-4xl text-muted-foreground text-balance text-lg"
                 >
-                  AntiMising helps you capture ideas, organize notes, manage
+                  Rinsign helps you capture ideas, organize notes, manage
                   passwords, and sketch on an infinite canvas. Fast, simple, and
                   accessible anywhere.
                 </TextEffect>
@@ -172,7 +175,7 @@ export default function HeroSection(): React.ReactElement {
                   href="/dashboard"
                   className={cn(
                     buttonVariants({ variant: "default" }),
-                    "group gap-1.5 transition-transform duration-200 hover:-translate-y-0.5"
+                    "group gap-1.5 transition-transform duration-200 hover:-translate-y-0.5",
                   )}
                 >
                   Continue to Dashboard
@@ -184,7 +187,7 @@ export default function HeroSection(): React.ReactElement {
                   rel="noreferrer"
                   className={cn(
                     buttonVariants({ variant: "secondary" }),
-                    "transition-transform duration-200 hover:-translate-y-0.5"
+                    "transition-transform duration-200 hover:-translate-y-0.5",
                   )}
                 >
                   Follow me on X

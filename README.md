@@ -1,6 +1,6 @@
-# AntiMising
+# Rinsign
 
-![AntiMising Preview](https://notes.eduvorea.com/_next/image?url=%2FImages%2FScreenshot%202026-10-09%20005536.png&w=3840&q=75)
+![Rinsign Preview](https://notes.eduvorea.com/_next/image?url=%2FImages%2FScreenshot%202026-10-09%20005536.png&w=3840&q=75)
 
 > Notes, canvas, and passwords — all in one secure workspace, powered by AI. Built with Next.js + TypeScript.
 
@@ -8,13 +8,13 @@
 
 ---
 
-## 🎯 What is AntiMising?
+## 🎯 What is Rinsign?
 
-AntiMising is a modern, all-in-one workspace built with **Next.js (App Router)** and **TypeScript**. It combines three products in one clean, minimal interface:
+Rinsign is a modern, all-in-one workspace built with **Next.js (App Router)** and **TypeScript**. It combines three products in one clean, minimal interface:
 
-* 📝 **Notes** — rich text editor (TipTap) with formatting, images, search, favorites and sharing
-* 🎨 **Canvas** — infinite whiteboards (Excalidraw) for visual thinking
-* 🔑 **Passwords** — AES-encrypted password manager (stored client-side encrypted)
+- 📝 **Notes** — rich text editor (TipTap) with formatting, images, search, favorites and sharing
+- 🎨 **Canvas** — infinite whiteboards (Excalidraw) for visual thinking
+- 🔑 **Passwords** — AES-encrypted password manager (stored client-side encrypted)
 
 A built-in AI assistant (NoteBuddy, powered by Google Gemini) helps you write, summarize and draft inside your notes.
 
@@ -22,44 +22,44 @@ A built-in AI assistant (NoteBuddy, powered by Google Gemini) helps you write, s
 
 ## ✨ Key Features
 
-* ✍️ Create, edit, and delete notes with rich text formatting (TipTap)
-* 🎨 Infinite canvas whiteboards (Excalidraw) for visual thinking
-* 🔑 Encrypted password manager (AES, client-side encryption)
-* 🤖 NoteBuddy — AI-powered writing assistant for summarizing and drafting
-* 🔐 Secure authentication (email/password + Google OAuth via Better Auth)
-* ☁️ Cloud image uploads via Cloudinary
-* 💳 Pro plan payments via Sifalo Pay (one-time $9 checkout, 30 days)
-* 🔗 Share notes and save favorites with smart organization
-* 🧩 Drag-and-drop notes, search (title, content, category), dark mode
-* 📱 Fully responsive design
+- ✍️ Create, edit, and delete notes with rich text formatting (TipTap)
+- 🎨 Infinite canvas whiteboards (Excalidraw) for visual thinking
+- 🔑 Encrypted password manager (AES, client-side encryption)
+- 🤖 NoteBuddy — AI-powered writing assistant for summarizing and drafting
+- 🔐 Secure authentication (email/password + Google OAuth via Better Auth)
+- ☁️ Cloud image uploads via Cloudinary
+- 💳 Pro plan payments via Sifalo Pay (one-time $9 checkout, 30 days)
+- 🔗 Share notes and save favorites with smart organization
+- 🧩 Drag-and-drop notes, search (title, content, category), dark mode
+- 📱 Fully responsive design
 
 ### Plan limits
 
-| | Free | Pro |
-| --- | --- | --- |
-| Characters / note | 3,000 | 10,000 |
-| Notes | 10 | Unlimited |
-| Images / note | 3 | Unlimited |
-| Passwords | 10 | Unlimited |
-| Canvases | 3 | Unlimited |
+|                   | Free  | Pro       |
+| ----------------- | ----- | --------- |
+| Characters / note | 3,000 | 10,000    |
+| Notes             | 10    | Unlimited |
+| Images / note     | 3     | Unlimited |
+| Passwords         | 10    | Unlimited |
+| Canvases          | 3     | Unlimited |
 
 ---
 
 ## 🧰 Tech Stack
 
-* **Next.js 15 (App Router)** + **React 19** + **TypeScript**
-* **Tailwind CSS v4** + **shadcn/ui** (Radix UI, lucide-react)
-* **TipTap** rich text editor
-* **Excalidraw** canvas
-* **Prisma** ORM + **PostgreSQL** (Neon)
-* **Better Auth** for authentication (email + Google OAuth)
-* **Google Gemini** (AI assistant), **OpenAI** SDK
-* **Cloudinary** for image storage
-* **Resend** for transactional email
-* **Sifalo Pay** for payments
-* **Arcjet** for bot protection
-* **Zod** validation, **Zustand** state, **Framer Motion** animations
-* **Deployed on Vercel**
+- **Next.js 15 (App Router)** + **React 19** + **TypeScript**
+- **Tailwind CSS v4** + **shadcn/ui** (Radix UI, lucide-react)
+- **TipTap** rich text editor
+- **Excalidraw** canvas
+- **Prisma** ORM + **PostgreSQL** (Neon)
+- **Better Auth** for authentication (email + Google OAuth)
+- **Google Gemini** (AI assistant), **OpenAI** SDK
+- **Cloudinary** for image storage
+- **Resend** for transactional email
+- **Sifalo Pay** for payments
+- **Arcjet** for bot protection
+- **Zod** validation, **Zustand** state, **Framer Motion** animations
+- **Deployed on Vercel**
 
 ---
 
@@ -111,7 +111,7 @@ PASSWORD_ENCRYPTION_KEY="hex-64-chars"
 
 # Email (Resend)
 RESEND_API_KEY="your-resend-key"
-RESEND_FROM="AntiMising <no-reply@yourdomain.com>"
+RESEND_FROM="Rinsign <no-reply@yourdomain.com>"
 
 # Payments (Sifalo Pay)
 SIFALO_USERNAME="your-sifalo-username"
@@ -175,7 +175,7 @@ Contributions are always welcome!
 
 ## 📸 Screenshot
 
-![AntiMising Screenshot](https://notes.eduvorea.com/_next/image?url=%2FImages%2FScreenshot%202026-10-09%20005536.png&w=3840&q=75)
+![Rinsign Screenshot](https://notes.eduvorea.com/_next/image?url=%2FImages%2FScreenshot%202026-10-09%20005536.png&w=3840&q=75)
 
 ---
 
@@ -183,9 +183,9 @@ Contributions are always welcome!
 
 Developed by [Imran Ahmed](https://github.com/imranDv1)
 
-* GitHub: [AntiMising](https://github.com/imranDv1/Rivorea-notes)
-* Live Demo: [rivorea-notes.vercel.app](https://rivorea-notes.vercel.app)
+- GitHub: [Rinsign](https://github.com/imranDv1/Rivorea-notes)
+- Live Demo: [rivorea-notes.vercel.app](https://rivorea-notes.vercel.app)
 
 ---
 
-✨ *"AntiMising — Capture, organize, and think better."*
+✨ _"Rinsign — Capture, organize, and think better."_

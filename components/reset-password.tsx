@@ -55,7 +55,9 @@ export default function ResetPasswordPage() {
       token,
       fetchOptions: {
         onSuccess: () => {
-          toast.success("Password reset successful, sign in with your new password");
+          toast.success(
+            "Password reset successful, sign in with your new password",
+          );
           router.push("/login");
         },
         onError: (ctx) => {
@@ -72,9 +74,13 @@ export default function ResetPasswordPage() {
         <div className="max-w-92 m-auto h-fit w-full ">
           <div className="p-6">
             <div>
-              <Link href="/" aria-label="go home" className="flex items-center gap-3">
+              <Link
+                href="/"
+                aria-label="go home"
+                className="flex items-center gap-3"
+              >
                 <LogoIcon className="size-6" />
-                <span>AntiMising</span>
+                <span>Rinsign</span>
               </Link>
               <h1 className="mb-1 mt-4 text-xl font-semibold">
                 Invalid reset link
@@ -108,9 +114,13 @@ export default function ResetPasswordPage() {
       <div className="max-w-92 m-auto h-fit w-full ">
         <div className="p-6">
           <div>
-            <Link href="/" aria-label="go home" className="flex items-center gap-3">
+            <Link
+              href="/"
+              aria-label="go home"
+              className="flex items-center gap-3"
+            >
               <LogoIcon className="size-6" />
-              <span>AntiMising</span>
+              <span>Rinsign</span>
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
               Set a new password

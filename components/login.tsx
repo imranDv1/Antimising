@@ -111,10 +111,10 @@ export default function LoginPage({ siteKey }: { siteKey?: string }) {
               className="flex items-center gap-3"
             >
               <LogoIcon className="size-6" />
-              <span>AntiMising</span>
+              <span>Rinsign</span>
             </Link>
             <h1 className="mb-1 mt-4 text-xl font-semibold">
-              Sign In to AntiMising
+              Sign In to Rinsign
             </h1>
             <p className="text-muted-foreground">
               Welcome back! Sign in to continue

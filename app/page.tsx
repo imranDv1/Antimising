@@ -24,12 +24,11 @@ export default async function Home() {
   }
 
   return (
-    <div className='dark:bg-black'>
-      
+    <div className="dark:bg-black">
       <HeroSection />
       {/* <LogoCloud/> */}
       <div className="w-[95%] lg:w-[80%] mx-auto flex flex-col gap-5 mt-15">
-      <h1 className=" text-3xl lg:text-5xl font-bold text-center mt-8 mb-2">
+        <h1 className=" text-3xl lg:text-5xl font-bold text-center mt-8 mb-2">
           Capture, Organize, and Find Your Notes Effortlessly
         </h1>
         <p className="text-muted-foreground text-center text-lg max-w-2xl mx-auto ">
@@ -42,7 +41,7 @@ export default async function Home() {
 
       <div className="w-[95%] lg:w-[80%] mx-auto flex flex-col gap-5 mt-16 mb-2">
         <h2 className="text-3xl lg:text-5xl font-bold text-center mt-8 mb-2">
-          Why Choose AntiMising?
+          Why Choose Rinsign?
         </h2>
         <p className="text-lg text-muted-foreground text-center max-w-2xl mx-auto">
           Encrypted storage, favorites and tags to stay organized, sharing with
@@ -51,7 +50,7 @@ export default async function Home() {
         </p>
       </div>
       <Features10 />
-      
+
       <div className="w-[95%] lg:w-[80%] mx-auto flex flex-col gap-3">
         <h1 className=" text-3xl lg:text-5xl font-bold text-center mt-8 mb-2">
           Access Anywhere, Encrypted at Rest
@@ -72,7 +71,7 @@ export default async function Home() {
           edit access, an infinite canvas, and an encrypted password vault.
         </p>
       </div>
-      <FeaturesSection2/>
+      <FeaturesSection2 />
       <Pricing userId={userId} hasSubscription={hasSubs} />
       <FooterSection />
     </div>

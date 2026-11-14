@@ -49,7 +49,7 @@ export const HeroHeader = () => {
                 className="flex items-center space-x-2"
               >
                 <Logo />
-                <span>AntiMising</span>
+                <span>Rinsign</span>
               </Link>
 
               <button

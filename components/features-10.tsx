@@ -4,7 +4,7 @@ import { Calendar, LucideIcon, MapIcon } from "lucide-react";
 import Image from "next/image";
 import { ReactNode } from "react";
 
-// NOTE: Text changed throughout feature section for AntiMising.
+// NOTE: Text changed throughout feature section for Rinsign.
 
 export default function Features10() {
   return (
@@ -63,7 +63,7 @@ export default function Features10() {
 
           <FeatureCard className="p-6 lg:col-span-2">
             <p className="mx-auto my-6 max-w-md text-balance text-center text-2xl font-semibold">
-              Effortless notes, organized and encrypted — AntiMising.
+              Effortless notes, organized and encrypted — Rinsign.
             </p>
 
             <div className="flex justify-center gap-6 overflow-hidden">
@@ -102,7 +102,10 @@ interface FeatureCardProps {
 
 const FeatureCard = ({ children, className }: FeatureCardProps) => (
   <Card
-    className={cn("group relative rounded-none dark:bg-black shadow-zinc-950/5", className)}
+    className={cn(
+      "group relative rounded-none dark:bg-black shadow-zinc-950/5",
+      className,
+    )}
   >
     <CardDecorator />
     {children}

@@ -12,7 +12,7 @@ export function GlowingEffectDemoSecond() {
       <GridItem
         area="md:[grid-area:1/1/2/7] xl:[grid-area:1/1/2/5]"
         icon={<Box className="h-4 w-4 text-black dark:text-neutral-400" />}
-        title="Welcome to AntiMising"
+        title="Welcome to Rinsign"
         description="A modern workspace for notes, canvas boards, and passwords — encrypted, quick, and there whenever you sign in."
       />
 

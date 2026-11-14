@@ -103,7 +103,7 @@ export default function SignUpPage({ siteKey }: { siteKey?: string }) {
               className="flex items-center gap-3"
             >
               <LogoIcon className="size-6" />
-              <span>AntiMising</span>
+              <span>Rinsign</span>
             </Link>
           </div>
 

@@ -24,7 +24,7 @@ export default function FeaturesSection2() {
 
             <p className="mt-8 text-2xl font-semibold">
               All your notes, ideas, and checklists in one secure, searchable
-              place. Tag and organize your thoughts with AntiMising.
+              place. Tag and organize your thoughts with Rinsign.
             </p>
           </div>
 
@@ -66,14 +66,14 @@ export default function FeaturesSection2() {
                 </span>
               </div>
               <div className="rounded-(--radius) bg-background mt-1.5 w-3/5 border p-3 text-xs">
-                Hi AntiMising, how do I share a note with someone?
+                Hi Rinsign, how do I share a note with someone?
               </div>
             </div>
 
             <div>
               <div className="rounded-(--radius) mb-1 ml-auto w-3/5 bg-primary p-3 text-xs text-white">
                 Open the note and click <strong>Share</strong>. Search for a
-                registered AntiMising user by name or email, then pick{" "}
+                registered Rinsign user by name or email, then pick{" "}
                 <strong>Can view</strong> or <strong>Can edit</strong>.
               </div>
               <span className="text-muted-foreground block text-right text-xs">

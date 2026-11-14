@@ -7,10 +7,14 @@ if (!process.env.GEMINI_API_KEY) {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const PRIMARY_MODEL = "gemini-3.8-flash";
-const FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"];
+const FALLBACK_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+];
 
 const SYSTEM_INSTRUCTION = [
-  "You are NoteBuddy, the AI writing assistant built into AntiMising, a professional notes application.",
+  "You are NoteBuddy, the AI writing assistant built into Rinsign, a professional notes application.",
   "You help users draft, structure, edit, summarize, and polish their notes.",
   "Stay on topic: if a request has nothing to do with notes or writing, briefly say you can only help with notes.",
   "Tone: professional, clear, and concise — a capable writing partner, never chatty, casual, or overly familiar.",
@@ -67,7 +71,7 @@ export async function* streamNoteBody(title: string): AsyncGenerator<string> {
       }
       lastError = error;
       console.warn(
-        `AI model ${modelName} unavailable (${status}), falling back…`
+        `AI model ${modelName} unavailable (${status}), falling back…`,
       );
       await sleep(400);
     }

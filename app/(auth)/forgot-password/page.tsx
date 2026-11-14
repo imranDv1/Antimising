@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Forgot Password",
-  description: "Reset your AntiMising password and get back to your workspace.",
+  description: "Reset your Rinsign password and get back to your workspace.",
 };
 
 const ForgotPassword = () => {

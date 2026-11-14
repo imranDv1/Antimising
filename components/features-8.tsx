@@ -267,7 +267,7 @@ export default function FeaturesSection() {
                       Share notes with people you choose
                     </h2>
                     <p className="text-foreground">
-                      Share a note with another AntiMising user and give them
+                      Share a note with another Rinsign user and give them
                       view-only or edit access.
                     </p>
                   </div>
