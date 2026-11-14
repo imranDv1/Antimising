@@ -17,12 +17,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://notes.eduvorea.com"),
   title: {
-    default: "AntiMising",
-    template: "%s | AntiMising",
+    default: "Rinsign",
+    template: "%s | Rinsign",
   },
   description:
     "Notes, canvas, and passwords — all in one secure workspace. Capture ideas, sketch on an infinite canvas, manage passwords, and let AI help you write.",
-  applicationName: "AntiMising",
+  applicationName: "Rinsign",
   keywords: [
     "notes app",
     "note taking",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     "excalidraw",
     "online notes",
     "secure notes",
-    "AntiMising",
+    "Rinsign",
   ],
   authors: [{ name: "Imran Ahmed", url: "https://github.com/imranDv1" }],
   creator: "Imran Ahmed",
@@ -46,23 +46,23 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://notes.eduvorea.com",
-    siteName: "AntiMising",
-    title: "AntiMising",
+    siteName: "Rinsign",
+    title: "Rinsign",
     description:
       "Notes, canvas, and passwords — all in one secure workspace with an AI writing assistant.",
     images: [
       {
-        url: "/Images/Antimising.jpg",
-        alt: "AntiMising — notes, canvas, and passwords",
+        url: "/Images/Rinsign.jpg",
+        alt: "Rinsign — notes, canvas, and passwords",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AntiMising",
+    title: "Rinsign",
     description:
       "Notes, canvas, and passwords — all in one secure workspace with an AI writing assistant.",
-    images: ["/Images/Antimising.jpg"],
+    images: ["/Images/Rinsign.jpg"],
     creator: "@imrandv1",
   },
   robots: {

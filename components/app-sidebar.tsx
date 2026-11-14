@@ -229,7 +229,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link href="/" className="flex item-start justify-start">
                 <Logo className="h-5 w-5" />
-                <span className="text-xl font-semibold font-sans ">Anti<span className="text-primary">Mising</span></span>
+                <span className="text-xl font-semibold font-sans ">Rin<span className="text-primary">sign</span></span>
               </Link>
             </SidebarMenuButton>
             <Separator className="mt-3"/>
