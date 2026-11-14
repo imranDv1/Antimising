@@ -59,6 +59,7 @@ const UNSAVED_MESSAGE =
 type CreateNotesProps = {
   notes: Note[];
   totalCount?: number;
+  sharedCount?: number;
   noteLimit?: number | null;
   hasMore?: boolean;
   loadingMore?: boolean;
@@ -306,6 +307,7 @@ const EmptyState = ({
 const CreateNotesPage = ({
   notes,
   totalCount = notes.length,
+  sharedCount = 0,
   noteLimit = null,
   hasMore = false,
   loadingMore = false,
@@ -728,7 +730,8 @@ const CreateNotesPage = ({
               variant="secondary"
               className=" px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
             >
-              {totalCount} note{totalCount !== 1 ? "s" : ""}
+              {totalCount + sharedCount} note
+              {totalCount + sharedCount !== 1 ? "s" : ""}
             </Badge>
           </div>   
 
@@ -752,7 +755,13 @@ const CreateNotesPage = ({
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
-                onClick={() => toggleSelectAll(displayedNotes.map((n) => n.id))}
+                onClick={() =>
+                  toggleSelectAll(
+                    displayedNotes
+                      .filter((n) => n.permission === "owner")
+                      .map((n) => n.id)
+                  )
+                }
                 className="shrink-0"
               >
                 <Check className="mr-1.5 size-4" /> Select all
@@ -878,9 +887,10 @@ const CreateNotesPage = ({
               onTagClick={handleCategorySearch}
               onOpen={handleOpenNote}
               clickableTags={!isFiltered}
-              selectionMode={selectionMode}
+              selectionMode={selectionMode && note.permission === "owner"}
               selected={selectedIds.includes(note.id)}
               onToggleSelect={toggleSelect}
+              isNew={note.permission !== "owner" && !note.isRead}
             />
           ))
         )}

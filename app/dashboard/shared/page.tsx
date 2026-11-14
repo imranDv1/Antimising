@@ -6,13 +6,23 @@ import { Note, NoteCard, sortFavoritesFirst } from "@/components/note-card";
 import { authClient } from "@/lib/auth-client";
 import { useSharedStore } from "@/context/sharedStore";
 import { useSharedCacheStore } from "@/context/sharedCacheStore";
+import { useNotesCacheStore } from "@/context/notesCacheStore";
 import { useFavoritesOnTop } from "@/context/notesPrefsStore";
 import { useFavoritesCacheStore } from "@/context/favoritesCacheStore";
 import { useFavNotificationStore } from "@/context/updateFavorite";
 import { useRouter } from "next/navigation";
 import NotesLoadingSkeleton from "../create/_components/NotesLoadingSkeleton ";
-import { Users } from "lucide-react";
+import { Ban, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // 🧠 الكاش يعتبر "طازجًا" خلال 60 ثوانٍ — لا جلب عند الرجوع لهذه الصفحة
 const TTL_MS = 60_000;
@@ -31,7 +41,12 @@ const Page = () => {
   const [favoritesOnTop] = useFavoritesOnTop();
 
   const refreshSharedSignal = useSharedStore((s) => s.refreshSharedSignal);
+  const triggerSharedRefresh = useSharedStore((s) => s.triggerSharedRefresh);
   const prevSignalRef = useRef(refreshSharedSignal);
+
+  // Rejecting a share: the recipient removes their own access.
+  const [declineTarget, setDeclineTarget] = useState<Note | null>(null);
+  const [declining, setDeclining] = useState(false);
 
   const triggerFavRefresh = useFavNotificationStore(
     (s) => s.triggerFavRefresh
@@ -149,6 +164,49 @@ const Page = () => {
     router.push(`/dashboard/notes/${noteId}`);
   };
 
+  // Reject (decline) a note someone shared with me — removes only my access.
+  const handleDecline = async () => {
+    if (!declineTarget || !userId) return;
+    setDeclining(true);
+    const noteId = declineTarget.id;
+    try {
+      const res = await fetch(
+        `/api/shared-notes?noteId=${encodeURIComponent(noteId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || "Failed to reject share");
+
+      const nextNotes = notes.filter((n) => n.id !== noteId);
+      const nextUnread = Math.max(
+        0,
+        unreadCount - (declineTarget.isRead ? 0 : 1)
+      );
+      setNotes(nextNotes);
+      setUnreadCount(nextUnread);
+      useSharedCacheStore.getState().set(userId, nextNotes, nextUnread);
+      // Keep the All Notes list in sync as well.
+      useNotesCacheStore.getState().removeNote(noteId);
+
+      // A rejected note must not linger in favorites.
+      if (useFavoritesCacheStore.getState().status[noteId]) {
+        useFavoritesCacheStore.getState().removeNote(userId, noteId);
+        triggerFavRefresh();
+      }
+
+      // Refresh the sidebar "Shared with me" badge count.
+      triggerSharedRefresh();
+      toast.success("Share rejected");
+      setDeclineTarget(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reject share"
+      );
+    } finally {
+      setDeclining(false);
+    }
+  };
+
   if (loading) return <NotesLoadingSkeleton />;
 
   return (
@@ -197,12 +255,65 @@ const Page = () => {
               onDelete={() => {}}
               onEdit={() => handleOpenNote(note.id)}
               onOpen={() => handleOpenNote(note.id)}
+              onDecline={(id) =>
+                setDeclineTarget(notes.find((n) => n.id === id) ?? null)
+              }
+              declining={declining && declineTarget?.id === note.id}
               clickableTags={false}
               isNew={!note.isRead}
             />
           ))}
         </div>
       )}
+
+      {/* ── Reject-share confirmation ─────────────────────────────────── */}
+      <Dialog
+        open={!!declineTarget}
+        onOpenChange={(open) => {
+          if (!open && !declining) setDeclineTarget(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-sm"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Ban className="size-4 text-destructive" />
+              Reject this shared note?
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-muted-foreground">
+              {declineTarget
+                ? `“${declineTarget.title}” will be removed from your account and you will lose access to it. The owner keeps their own copy.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={declining}
+              onClick={() => setDeclineTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={declining}
+              onClick={handleDecline}
+            >
+              {declining ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Rejecting…
+                </span>
+              ) : (
+                "Reject"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

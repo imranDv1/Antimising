@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 const PERMISSIONS = ["read", "write"] as const;
 type SharePermission = (typeof PERMISSIONS)[number];
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 async function getSessionUser() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -91,22 +93,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { canvasId, userId: targetUserId, permission } = await request.json();
+    const { canvasId, email, permission } = await request.json();
 
     const owned = await getOwnedCanvas(canvasId ?? "", userId);
     if ("error" in owned) {
       return NextResponse.json({ message: owned.error }, { status: owned.status });
-    }
-
-    if (!targetUserId) {
-      return NextResponse.json({ message: "userId is required" }, { status: 400 });
-    }
-
-    if (targetUserId === userId) {
-      return NextResponse.json(
-        { message: "You cannot share a board with yourself" },
-        { status: 400 }
-      );
     }
 
     if (!isValidPermission(permission)) {
@@ -116,19 +107,52 @@ export async function POST(request: Request) {
       );
     }
 
+    // Exact email lookup only — no fuzzy/partial search over the user table.
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      return NextResponse.json(
+        { message: "Enter a valid email address" },
+        { status: 400 }
+      );
+    }
+
     const target = await prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { id: true, name: true, email: true, image: true },
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        allowSharing: true,
+      },
     });
 
     if (!target) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "No Rinsign account uses that email address" },
+        { status: 404 }
+      );
+    }
+
+    if (target.id === userId) {
+      return NextResponse.json(
+        { message: "You cannot share a board with yourself" },
+        { status: 400 }
+      );
+    }
+
+    if (!target.allowSharing) {
+      return NextResponse.json(
+        { message: `${target.name} isn't accepting shared boards right now` },
+        { status: 403 }
+      );
     }
 
     const share = await prisma.canvasShare.upsert({
-      where: { canvasId_userId: { canvasId, userId: targetUserId } },
+      where: { canvasId_userId: { canvasId, userId: target.id } },
       update: { permission },
-      create: { canvasId, userId: targetUserId, permission },
+      create: { canvasId, userId: target.id, permission },
     });
 
     return NextResponse.json({

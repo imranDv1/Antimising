@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Ban,
   Check,
   Loader2,
   Maximize2,
@@ -141,6 +142,8 @@ export default function CanvasPage() {
   const [creating, setCreating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [favLoading, setFavLoading] = useState(false);
@@ -557,6 +560,45 @@ useEffect(() => {
     }
   }, [activeId, allBoards, selectBoard, createBoard]);
 
+  // Reject (decline) a board someone shared with me — removes only my access.
+  const handleLeaveShared = useCallback(async () => {
+    if (!activeId || !userId) return;
+    setLeaveLoading(true);
+    const leavingId = activeId;
+    try {
+      const res = await fetch(
+        `/api/canvas/share/leave?canvasId=${encodeURIComponent(leavingId)}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.message || "Failed to reject board");
+
+      setSharedCanvases((prev) => prev.filter((c) => c.id !== leavingId));
+      setFavoriteIds((prev) => prev.filter((id) => id !== leavingId));
+      triggerFavRefresh();
+      useCanvasCacheStore.getState().remove(leavingId);
+      useCanvasCacheStore.getState().patchList((l) => ({
+        ...l,
+        sharedCanvases: l.sharedCanvases.filter((c) => c.id !== leavingId),
+      }));
+      setLeaveOpen(false);
+      toast.success("Share rejected");
+
+      const remaining = allBoards.filter((c) => c.id !== leavingId);
+      if (remaining.length > 0) {
+        await selectBoard(remaining[0].id);
+      } else {
+        await createBoard(true);
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reject board"
+      );
+    } finally {
+      setLeaveLoading(false);
+    }
+  }, [activeId, userId, allBoards, selectBoard, createBoard, triggerFavRefresh]);
+
   const statusPill =
     saveStatus === "saving" ? (
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -781,6 +823,19 @@ useEffect(() => {
             {!isMobile && "Share"}
           </Button>
         )}
+
+        {!canManage && activeId && !docLoading && (
+          <Button
+            variant="outline"
+            size={isMobile ? "icon" : "default"}
+            onClick={() => setLeaveOpen(true)}
+            aria-label="Reject shared board"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Ban className="size-4" />
+            {!isMobile && "Reject"}
+          </Button>
+        )}
       </div>
 
       {/* ── Editor (fills the rest of the page, below the controls) ───── */}
@@ -875,6 +930,50 @@ useEffect(() => {
                 </span>
               ) : (
                 "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reject-share confirmation (boards shared with me) ─────────── */}
+      <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <DialogContent
+          className="max-w-sm"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Ban className="size-4 text-destructive" />
+              Reject this shared board?
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-muted-foreground">
+              {activeId && sharedCanvases.some((c) => c.id === activeId)
+                ? `“${boardLabel(sharedCanvases.find((c) => c.id === activeId)!)}” will be removed from your account and you will lose access to it. The owner keeps their own copy.`
+                : "This board will be removed from your account."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={leaveLoading}
+              onClick={() => setLeaveOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={leaveLoading}
+              onClick={handleLeaveShared}
+            >
+              {leaveLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" />
+                  Rejecting…
+                </span>
+              ) : (
+                "Reject"
               )}
             </Button>
           </DialogFooter>

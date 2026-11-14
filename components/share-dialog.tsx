@@ -21,15 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import {
-  Loader2,
-  Search,
-  Share2,
-  Trash2,
-  UserPlus,
-  Users,
-  X,
-} from "lucide-react";
+import { Loader2, Mail, Share2, Trash2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -97,20 +89,14 @@ export function ShareDialog({
   const [shares, setShares] = React.useState<ShareEntry[]>([]);
   const [loadingShares, setLoadingShares] = React.useState(false);
 
-  const [query, setQuery] = React.useState("");
-  const [results, setResults] = React.useState<ShareUser[]>([]);
-  const [searching, setSearching] = React.useState(false);
-  const [searchStatus, setSearchStatus] = React.useState<
-    "idle" | "empty" | "results"
-  >("idle");
-  const [selected, setSelected] = React.useState<ShareUser | null>(null);
+  // Exact-email sharing: the recipient is resolved once, on submit.
+  const [email, setEmail] = React.useState("");
+  const [emailError, setEmailError] = React.useState<string | null>(null);
   const [permission, setPermission] = React.useState<"read" | "write">("read");
 
   const [sharing, setSharing] = React.useState(false);
   const [updating, setUpdating] = React.useState<Record<string, boolean>>({});
   const [removing, setRemoving] = React.useState<Record<string, boolean>>({});
-
-  const searchSeq = React.useRef(0);
 
   const lower = noun.toLowerCase();
   const queryParam = (key: string, value: string) =>
@@ -122,11 +108,9 @@ export function ShareDialog({
 
     let cancelled = false;
     setLoadingShares(true);
-    setSelected(null);
     setPermission("read");
-    setQuery("");
-    setResults([]);
-    setSearchStatus("idle");
+    setEmail("");
+    setEmailError(null);
     setShares([]);
 
     fetch(queryParam(idParam, entityId))
@@ -150,59 +134,19 @@ export function ShareDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, entityId, endpoint, idParam]);
 
-  // Debounced email search
-  React.useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearchStatus(q.length > 0 ? "empty" : "idle");
-      setSearching(false);
+  const handleShare = async () => {
+    const normalized = email.trim().toLowerCase();
+
+    if (!normalized) {
+      setEmailError("Enter the recipient's email address.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      setEmailError("Enter a valid email address.");
       return;
     }
 
-    const seq = ++searchSeq.current;
-    setSearching(true);
-    setSearchStatus("idle");
-
-    const timer = setTimeout(() => {
-      fetch("/api/share/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error(await parseError(res, "Search failed"));
-          return res.json();
-        })
-        .then((data) => {
-          if (seq !== searchSeq.current) return;
-          const users: ShareUser[] = data.users ?? [];
-          setResults(users);
-          setSearchStatus(users.length ? "results" : "empty");
-        })
-        .catch((err) => {
-          if (seq !== searchSeq.current) return;
-          setResults([]);
-          setSearchStatus("empty");
-          toast.error((err as Error).message);
-        })
-        .finally(() => {
-          if (seq === searchSeq.current) setSearching(false);
-        });
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const selectUser = (user: ShareUser) => {
-    setSelected(user);
-    setResults([]);
-    setQuery("");
-    setSearchStatus("idle");
-  };
-
-  const handleShare = async () => {
-    if (!selected) return;
+    setEmailError(null);
     setSharing(true);
     try {
       const res = await fetch(endpoint, {
@@ -210,26 +154,33 @@ export function ShareDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           [idParam]: entityId,
-          userId: selected.id,
+          email: normalized,
           permission,
         }),
       });
-      if (!res.ok) throw new Error(await parseError(res, `Failed to share ${lower}`));
+
+      if (!res.ok) {
+        // "No account with that email", "not accepting shares", self-share…
+        // The API message is already user-facing, so show it inline.
+        setEmailError(await parseError(res, `Failed to share ${lower}`));
+        return;
+      }
+
       const data = await res.json();
       const share: ShareEntry = data.share;
 
       setShares((prev) => {
-        const exists = prev.some((s) => s.user.id === selected.id);
+        const exists = prev.some((s) => s.user.id === share.user.id);
         return exists
-          ? prev.map((s) => (s.user.id === selected.id ? share : s))
+          ? prev.map((s) => (s.user.id === share.user.id ? share : s))
           : [...prev, share];
       });
-      toast.success(`${noun} shared with ${selected.name}`);
-      setSelected(null);
+      toast.success(`${noun} shared with ${share.user.name}`);
+      setEmail("");
       setPermission("read");
       onChanged?.();
     } catch (err) {
-      toast.error((err as Error).message);
+      setEmailError((err as Error).message);
     } finally {
       setSharing(false);
     }
@@ -276,18 +227,6 @@ export function ShareDialog({
     }
   };
 
-  const selectedIds = React.useMemo(
-    () => new Set(shares.map((s) => s.user.id)),
-    [shares]
-  );
-  const visibleResults = React.useMemo(
-    () =>
-      results.filter(
-        (u) => u.id !== selected?.id && !selectedIds.has(u.id)
-      ),
-    [results, selected, selectedIds]
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md w-[95vw]">
@@ -297,156 +236,105 @@ export function ShareDialog({
             {title}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Choose who can access this {lower} and what they can do.
+            Enter the email of the person you want to share this {lower} with.
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-5">
-          {/* ── Search by email ──────────────────────────────────────── */}
+          {/* ── Recipient email ──────────────────────────────────────── */}
           <div className="space-y-3">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                type="text"
-                placeholder="Search by email..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoComplete="off"
+                type="email"
+                inputMode="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!sharing) void handleShare();
+                  }
+                }}
+                autoComplete="email"
                 spellCheck={false}
-                className="pl-9 pr-9"
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby={emailError ? "share-email-error" : undefined}
+                className={cn(
+                  "pl-9",
+                  emailError && "border-destructive focus-visible:ring-destructive/40"
+                )}
               />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  aria-label="Clear search"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
             </div>
 
-            {searching && (
-              <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Searching…
-              </div>
-            )}
+            <p className="px-1 text-xs text-muted-foreground">
+              Use their full email address. We only look them up when you press
+              {" "}
+              {title}.
+            </p>
 
-            {!searching && searchStatus === "empty" && (
-              <p className="px-1 text-sm text-muted-foreground">
-                No users found. Try a different email.
+            {emailError && (
+              <p
+                id="share-email-error"
+                role="alert"
+                className="px-1 text-sm text-destructive"
+              >
+                {emailError}
               </p>
-            )}
-
-            {visibleResults.length > 0 && (
-              <ul className="space-y-1">
-                {visibleResults.map((user) => (
-                  <li key={user.id}>
-                    <button
-                      type="button"
-                      onClick={() => selectUser(user)}
-                      className="flex w-full items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                    >
-                      <Avatar className="size-8">
-                        <AvatarImage src={user.image ?? undefined} alt={user.name} />
-                        <AvatarFallback className="text-xs">
-                          {initials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {user.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {user.email}
-                        </span>
-                      </span>
-                      <UserPlus className="size-4 shrink-0 text-muted-foreground" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
 
-          {/* ── Selected user + permission ───────────────────────────── */}
-          {selected && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
-                <Avatar className="size-8">
-                  <AvatarImage src={selected.image ?? undefined} alt={selected.name} />
-                  <AvatarFallback className="text-xs">
-                    {initials(selected.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">
-                    {selected.name}
+          {/* ── Permission ───────────────────────────────────────────── */}
+          <div role="radiogroup" aria-label="Permission" className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Permission
+            </p>
+            {(
+              [
+                { value: "read" as const, label: "Can view", hint: `Can read this ${lower} but cannot make changes.` },
+                { value: "write" as const, label: "Can edit", hint: `Can read and modify this ${lower}.` },
+              ]
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={permission === opt.value}
+                onClick={() => setPermission(opt.value)}
+                className={cn(
+                  "flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                  permission === opt.value
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-border hover:bg-accent/10"
+                )}
+              >
+                <span
+                  className={cn(
+                    "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border",
+                    permission === opt.value
+                      ? "border-primary"
+                      : "border-muted-foreground/40"
+                  )}
+                >
+                  {permission === opt.value && (
+                    <span className="size-2 rounded-full bg-primary" />
+                  )}
+                </span>
+                <span>
+                  <span className="block text-sm font-medium text-foreground">
+                    {opt.label}
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {selected.email}
+                  <span className="block text-xs text-muted-foreground">
+                    {opt.hint}
                   </span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setSelected(null)}
-                  aria-label="Deselect user"
-                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-
-              <div role="radiogroup" aria-label="Permission" className="space-y-1.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Permission
-                </p>
-                {(
-                  [
-                    { value: "read" as const, label: "Can view", hint: `Can read this ${lower} but cannot make changes.` },
-                    { value: "write" as const, label: "Can edit", hint: `Can read and modify this ${lower}.` },
-                  ]
-                ).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={permission === opt.value}
-                    onClick={() => setPermission(opt.value)}
-                    className={cn(
-                      "flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                      permission === opt.value
-                        ? "border-primary/50 bg-primary/5"
-                        : "border-border hover:bg-accent/10"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border",
-                        permission === opt.value
-                          ? "border-primary"
-                          : "border-muted-foreground/40"
-                      )}
-                    >
-                      {permission === opt.value && (
-                        <span className="size-2 rounded-full bg-primary" />
-                      )}
-                    </span>
-                    <span>
-                      <span className="block text-sm font-medium text-foreground">
-                        {opt.label}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {opt.hint}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+              </button>
+            ))}
+          </div>
 
           {/* ── People with access ───────────────────────────────────── */}
           <div className="space-y-2">
@@ -536,7 +424,7 @@ export function ShareDialog({
           <Button
             type="button"
             onClick={handleShare}
-            disabled={!selected || sharing}
+            disabled={!email.trim() || sharing}
             className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
           >
             {sharing ? (

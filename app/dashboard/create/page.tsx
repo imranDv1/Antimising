@@ -20,10 +20,13 @@ type Note = {
   shareCount?: number;
   ownerName?: string;
   ownerEmail?: string;
+  ownerImage?: string | null;
+  isRead?: boolean;
 };
 
 type NotesPayload = {
   mine: Note[];
+  shared: Note[];
   totalCount: number;
   page: number;
   limit: number;
@@ -69,13 +72,16 @@ const Page = () => {
         const data: NotesPayload = await res.json();
 
         const store = useNotesCacheStore.getState();
-        let merged: Note[] = data.mine;
+        // Owned notes are paginated; notes shared with me arrive in full on
+        // every response, so include them in the same list (deduped by id).
+        const incoming = [...data.mine, ...(data.shared ?? [])];
+        let merged: Note[] = incoming;
         if (append) {
           // Offset pagination can drift when ordering changes between fetches
           // (favorite toggle / edit), returning notes already on the previous
           // page. Dedupe by id so React keys stay unique.
           const map = new Map<string, Note>();
-          for (const n of store.notes.concat(data.mine)) map.set(n.id, n);
+          for (const n of store.notes.concat(incoming)) map.set(n.id, n);
           merged = Array.from(map.values());
         }
 
@@ -132,6 +138,11 @@ const Page = () => {
     <CreateNotes
       notes={notes}
       totalCount={totalCount}
+      sharedCount={
+        notes.filter(
+          (n) => n.permission === "read" || n.permission === "write"
+        ).length
+      }
       noteLimit={noteLimit}
       hasMore={hasMore}
       loadingMore={loadingMore}

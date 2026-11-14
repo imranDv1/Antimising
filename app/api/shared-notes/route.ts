@@ -39,7 +39,7 @@ export async function GET(request: Request) {
         include: {
           note: {
             include: {
-              user: { select: { name: true, email: true } },
+              user: { select: { name: true, email: true, image: true } },
             },
           },
         },
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       shareCount: 0,
       ownerName: row.note.user.name,
       ownerEmail: row.note.user.email,
+      ownerImage: row.note.user.image,
       isRead: row.isRead,
     }));
 
@@ -104,6 +105,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error marking shared note as read:", error);
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+// 🗑️ رفض مشاركة ملاحظة — المستلم فقط (يحذف الوصول الخاص به ولا يمس مالك الملاحظة)
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    const userIdFromSession = session?.user?.id;
+    if (!userIdFromSession) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const noteId = searchParams.get("noteId") || "";
+
+    if (!noteId) {
+      return NextResponse.json({ message: "noteId is required" }, { status: 400 });
+    }
+
+    const removed = await prisma.$transaction(async (tx) => {
+      const deleted = await tx.noteShare.deleteMany({
+        where: { noteId, userId: userIdFromSession },
+      });
+      if (deleted.count === 0) return 0;
+      // The note is no longer reachable, so don't keep it in favorites either.
+      await tx.favoriteNote.deleteMany({
+        where: { userId: userIdFromSession, noteId },
+      });
+      return deleted.count;
+    });
+
+    if (removed === 0) {
+      return NextResponse.json(
+        { message: "This note is not shared with you" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, message: "Share declined" });
+  } catch (error) {
+    console.error("Error declining shared note:", error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 }

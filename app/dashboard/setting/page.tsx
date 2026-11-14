@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -23,6 +23,7 @@ import {
   Loader2,
   LogOut,
   Palette,
+  Share2,
   Star,
   User,
 } from "lucide-react";
@@ -53,6 +54,60 @@ const Page = () => {
 
   // Notes preferences
   const [favoritesOnTop, setFavoritesOnTop] = useFavoritesOnTop();
+
+  // Sharing preferences (server-side, enforced by the share APIs)
+  const [allowSharing, setAllowSharing] = useState(true);
+  const [sharingLoading, setSharingLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/user/preferences", { cache: "no-cache" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active && typeof data.allowSharing === "boolean") {
+          setAllowSharing(data.allowSharing);
+        }
+      } catch {
+        // Non-critical: the switch simply starts from the default.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleAllowSharingChange = async (value: boolean) => {
+    const previous = allowSharing;
+    setAllowSharing(value);
+    setSharingLoading(true);
+    try {
+      const res = await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowSharing: value }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to update sharing preference");
+      }
+      toast.success(
+        value
+          ? "Others can share notes and boards with you again"
+          : "Sharing with you is now turned off"
+      );
+    } catch (err) {
+      setAllowSharing(previous);
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Failed to update sharing preference"
+      );
+    } finally {
+      setSharingLoading(false);
+    }
+  };
 
   // Change password
   const [currentPassword, setCurrentPassword] = useState("");
@@ -178,6 +233,39 @@ const Page = () => {
                 id="favorites-on-top"
                 checked={favoritesOnTop}
                 onCheckedChange={setFavoritesOnTop}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Sharing ──────────────────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Share2 className="size-5 text-muted-foreground" />
+              <CardTitle>Sharing</CardTitle>
+            </div>
+            <CardDescription>
+              Control whether other people can send you notes and boards
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="allow-sharing">
+                  Allow others to share with me
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  When this is off, no one can share a note or board with you.
+                  Anything already shared stays in “Shared with me” until you
+                  reject it.
+                </p>
+              </div>
+              <Switch
+                id="allow-sharing"
+                checked={allowSharing}
+                disabled={sharingLoading}
+                onCheckedChange={handleAllowSharingChange}
               />
             </div>
           </CardContent>

@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         include: {
           note: {
             include: {
-              user: { select: { name: true, email: true } },
+              user: { select: { name: true, email: true, image: true } },
             },
           },
         },
@@ -88,6 +88,8 @@ export async function GET(request: Request) {
       shareCount: 0,
       ownerName: row.note.user.name,
       ownerEmail: row.note.user.email,
+      ownerImage: row.note.user.image,
+      isRead: row.isRead,
     }));
 
     return NextResponse.json({

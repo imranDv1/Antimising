@@ -5,7 +5,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Check, Loader2, Star, Trash2, Users } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Ban, Check, Loader2, Star, Trash2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Note = {
@@ -20,8 +21,16 @@ export type Note = {
   shareCount?: number;
   ownerName?: string;
   ownerEmail?: string;
+  ownerImage?: string | null;
   isRead?: boolean;
 };
+
+function initials(name?: string) {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 // ─── Tag styling (unified, theme-aware) ────────────────────────────────────────
 export function getTagColor(tag: string) {
@@ -60,6 +69,8 @@ export const NoteCard = ({
   onEdit,
   onTagClick,
   onOpen,
+  onDecline,
+  declining = false,
   clickableTags = false,
   isNew = false,
   selectionMode = false,
@@ -76,6 +87,8 @@ export const NoteCard = ({
   onEdit: (note: Note) => void;
   onTagClick?: (tag: string) => void;
   onOpen?: (id: string) => void;
+  onDecline?: (id: string) => void;
+  declining?: boolean;
   clickableTags?: boolean;
   isNew?: boolean;
   selectionMode?: boolean;
@@ -98,6 +111,9 @@ export const NoteCard = ({
 
       {/* Card body */}
       <div className="flex flex-1 flex-col gap-3 p-4">
+        {/* Who shared this with me */}
+  
+
         {/* Header: title + star / selection checkbox */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="line-clamp-2 flex-1 text-base font-semibold leading-snug text-foreground">
@@ -201,11 +217,37 @@ export const NoteCard = ({
             </span>
           )}
 
+          
+
           {isShared && (
             <span className="inline-flex items-center rounded-md border border-border bg-card px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
               {note.permission === "write" ? "Can edit" : "Can view"}
             </span>
           )}
+
+                {isShared && (
+          <div
+            className="flex min-w-0 items-center gap-2"
+            title={note.ownerEmail}
+          >
+            <Avatar className="size-6 shrink-0 border border-border">
+              <AvatarImage
+                src={note.ownerImage ?? undefined}
+                alt={note.ownerName ?? "Note owner"}
+                className="object-center object-cover "
+              />
+              <AvatarFallback className="text-[10px] font-semibold text-muted-foreground">
+                {initials(note.ownerName)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 truncate text-xs text-muted-foreground">
+              Shared by{" "}
+              <span className="font-medium text-foreground">
+                {note.ownerName ?? "another user"}
+              </span>
+            </span>
+          </div>
+        )}
         </span>
 
         {!selectionMode && (
@@ -248,6 +290,23 @@ export const NoteCard = ({
               <span className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
               View only
             </span>
+            )}
+
+            {isShared && onDecline && (
+              <button
+                type="button"
+                onClick={() => onDecline(note.id)}
+                disabled={declining}
+                title="Reject this share — it will be removed from your account"
+                className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {declining ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Ban className="size-3.5" />
+                )}
+                Reject
+              </button>
             )}
 
             {!isShared && (

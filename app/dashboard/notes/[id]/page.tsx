@@ -8,6 +8,7 @@ import { useEditorNotificationStore } from "@/context/simpleEditorupddate";
 import { useSharedStore } from "@/context/sharedStore";
 import { useSharedCacheStore } from "@/context/sharedCacheStore";
 import { useNoteBodyCacheStore } from "@/context/noteBodyCacheStore";
+import { useNotesCacheStore } from "@/context/notesCacheStore";
 import { ArrowLeftToLine, RefreshCw, ShieldOff } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const Page = (props: { params: Promise<tParams> }) => {
           body: JSON.stringify({ noteId: params.id }),
         });
         useSharedCacheStore.getState().markRead(params.id);
+        useNotesCacheStore.getState().markRead(params.id);
         triggerSharedRefresh();
       } catch (err) {
         console.error(err);

@@ -34,6 +34,8 @@ model User {
   Canvas          Canvas[]
   CanvasShare     CanvasShare[]
   sifaloPayments  SifaloPayment[]
+  // false = the owner chose not to receive new note/board shares from anyone
+  allowSharing    Boolean          @default(true)
 
   @@unique([email])
   @@map("user")
