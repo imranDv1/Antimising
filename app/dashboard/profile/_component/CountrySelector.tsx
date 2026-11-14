@@ -10,7 +10,7 @@ import {
 import { countries } from "./countries";
 
 // Helper for flag emoji from country code
-function getFlagEmoji(countryCode: string) {
+export function getFlagEmoji(countryCode: string) {
   // Only make flag for two-letter A-Z (standard ISO 3166-1 alpha-2)
   if (!/^[A-Z]{2}$/i.test(countryCode)) {
     return "🏳️"; // fallback for non-standard codes
@@ -22,6 +22,10 @@ function getFlagEmoji(countryCode: string) {
     );
 }
 
+export function getCountryLabel(countryCode: string) {
+  return countries.find((country) => country.value === countryCode)?.label ?? "";
+}
+
 interface CountrySelectorProps {
   edit: boolean;
   value: string; // القيمة الحالية
@@ -30,22 +34,20 @@ interface CountrySelectorProps {
 
 export function CountrySelector({ edit, value, onChange }: CountrySelectorProps) {
   return (
-    <div className="w-[280px]">
-      <Select disabled={edit} value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Select a country" />
-        </SelectTrigger>
-        <SelectContent>
-          {countries.map((country) => (
-            <SelectItem key={country.value} value={country.value}>
-              <span className="flex items-center gap-2">
-                <span className="text-xl">{getFlagEmoji(country.value)}</span>
-                <span>{country.label}</span>
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select disabled={edit} value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Select a country" />
+      </SelectTrigger>
+      <SelectContent>
+        {countries.map((country) => (
+          <SelectItem key={country.value} value={country.value}>
+            <span className="flex items-center gap-2">
+              <span className="text-xl">{getFlagEmoji(country.value)}</span>
+              <span>{country.label}</span>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
