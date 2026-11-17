@@ -161,12 +161,14 @@ model Subscription {
 // A SifaloPayment is created (session-authenticated) when a checkout starts.
 // The sid is only attached after the payment is verified with Sifalo (verify.php),
 // and the unique sid is the idempotency guard against re-fulfilment.
+// status: pending -> paid (money confirmed) -> fulfilled (subscription written).
+// A row left at "paid" is healed by reconciliation on the next app load.
 model SifaloPayment {
   id        String    @id @default(uuid())
   userId    String
   amount    String
   currency  String    @default("USD")
-  status    String    @default("pending") // pending | paid
+  status    String    @default("pending") // pending | paid | fulfilled | failed
   sid       String?   @unique
   paidAt    DateTime?
   createdAt DateTime  @default(now())

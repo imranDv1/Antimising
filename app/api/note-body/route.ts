@@ -283,16 +283,6 @@ export async function POST(request: Request) {
       url => !finalImageUrlsInContent.includes(url)
     );
 
-    // Delete removed images from Cloudinary
-    for (const url of removedImages) {
-      try {
-        const publicId = getPublicIdFromUrl(url);
-        if (publicId) await cloudinary.uploader.destroy(publicId);
-      } catch (err) {
-        console.error("Failed to delete image from Cloudinary:", url, err);
-      }
-    }
-
     // Save only images that remain referenced in content
     const finalImages = finalImageUrlsInContent;
 
@@ -318,6 +308,18 @@ export async function POST(request: Request) {
         data: { updatedAt: new Date() },
       }),
     ]);
+
+    // Only once the note is safely saved, drop the images it no longer uses.
+    // Doing this after the transaction prevents a failed save from leaving the
+    // stored note pointing at deleted Cloudinary files.
+    for (const url of removedImages) {
+      try {
+        const publicId = getPublicIdFromUrl(url);
+        if (publicId) await cloudinary.uploader.destroy(publicId);
+      } catch (err) {
+        console.error("Failed to delete image from Cloudinary:", url, err);
+      }
+    }
 
     return NextResponse.json({
       success: true,

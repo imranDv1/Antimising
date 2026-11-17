@@ -8,22 +8,41 @@ export async function POST(request: NextRequest) {
     const sessionUserId = await getSessionUserId();
     if (!sessionUserId) return unauthorized();
 
-    // The session determines the user. Any order_id on the return URL is
-    // deliberately ignored — it must never be trusted from the client.
-    const { sid } = (await request.json().catch(() => ({}))) as {
+    // The session determines the user. order_id only ever selects which of
+    // THIS user's server-created checkout rows is being verified, and the
+    // payment is still confirmed by Sifalo's verify.php, never by this body.
+    const { sid, order_id } = (await request.json().catch(() => ({}))) as {
       sid?: string;
+      order_id?: string;
     };
 
-    if (!sid || typeof sid !== "string") {
+    const hasSid = typeof sid === "string" && sid.trim().length > 0;
+    const hasOrderId =
+      typeof order_id === "string" && order_id.trim().length > 0;
+
+    if (!hasSid && !hasOrderId) {
       return NextResponse.json(
-        { message: "sid is required" },
+        { message: "sid or order_id is required" },
         { status: 400 }
       );
     }
 
-    const result = await fulfillSifaloPayment({ sid, sessionUserId });
+    const result = await fulfillSifaloPayment({
+      sid: hasSid ? sid : undefined,
+      paymentId: hasOrderId ? order_id : undefined,
+      sessionUserId,
+    });
 
     if (!result.ok) {
+      // 603: the wallet charge is still waiting for approval on the customer's
+      // phone. The client polls this endpoint again until Sifalo answers 601.
+      if (result.pending) {
+        return NextResponse.json(
+          { success: false, pending: true, message: result.reason },
+          { status: 202 }
+        );
+      }
+
       return NextResponse.json(
         { message: result.reason },
         { status: result.status }

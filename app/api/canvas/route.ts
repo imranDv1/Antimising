@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
 import {
   encryptNotePayload,
@@ -11,9 +11,24 @@ import {
   withUserScopeLock,
   PlanLimitError,
 } from "@/lib/limits";
+import {
+  deleteCanvasImages,
+  extractRemoteCanvasImageUrls,
+  findRemovedCanvasImageUrls,
+} from "@/lib/canvas-images";
 import type { Canvas } from "@/lib/generated/prisma";
 
 type BoardPermission = "owner" | "read" | "write";
+
+function safeDecrypt(contentEnc: string | null | undefined): unknown {
+  if (!contentEnc) return null;
+  try {
+    return decryptNotePayload(contentEnc);
+  } catch {
+    // Corrupt payload: skip storage cleanup rather than guessing at keys.
+    return null;
+  }
+}
 
 const boardSelect = {
   id: true,
@@ -230,11 +245,25 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: "Nothing to update" }, { status: 400 });
     }
 
+    // Images removed from the board are dropped from UploadThing once the new
+    // scene is safely persisted (best-effort, never blocks the response).
+    const removedImages =
+      content !== undefined
+        ? findRemovedCanvasImageUrls(
+            safeDecrypt(access.canvas.contentEnc),
+            content
+          )
+        : [];
+
     const updated = await prisma.canvas.update({
       where: { id },
       data,
       select: { id: true, title: true, updatedAt: true },
     });
+
+    if (removedImages.length > 0) {
+      after(() => deleteCanvasImages(removedImages));
+    }
 
     return NextResponse.json({ canvas: updated });
   } catch (error: any) {
@@ -262,7 +291,17 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const imageUrls = extractRemoteCanvasImageUrls(
+      safeDecrypt(access.canvas.contentEnc)
+    );
+
     await prisma.canvas.delete({ where: { id: access.canvas.id } });
+
+    // Deleting a board removes its UploadThing images too.
+    if (imageUrls.length > 0) {
+      after(() => deleteCanvasImages(imageUrls));
+    }
+
     return NextResponse.json({ message: "Canvas deleted" });
   } catch (error: any) {
     console.error("Error deleting canvas:", error);

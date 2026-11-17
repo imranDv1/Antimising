@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUserId, unauthorized, forbidden } from "@/lib/api-auth";
 import { getPlanLimits } from "@/lib/limits";
+import { reconcileSifaloPayments } from "@/lib/sifalopay";
 import { prisma } from "@/lib/db";
 
 // Display-only endpoint. NOTE: authorization and limit enforcement must use
@@ -24,7 +25,15 @@ export async function POST(request: Request) {
       }
     }
 
-    const limits = await getPlanLimits(sessionUserId);
+    let limits = await getPlanLimits(sessionUserId);
+
+    // Safety net for a payment that cleared after the customer left the
+    // payment page, or whose subscription write failed: verify pending rows
+    // and heal paid-without-subscription rows before answering.
+    if (!limits.isPro) {
+      const upgraded = await reconcileSifaloPayments(sessionUserId);
+      if (upgraded) limits = await getPlanLimits(sessionUserId);
+    }
 
     const subscription = await prisma.subscription.findUnique({
       where: { userId: sessionUserId },

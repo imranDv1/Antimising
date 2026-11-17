@@ -62,17 +62,7 @@ export async function POST(req: Request) {
     let imageUrl: string | undefined = undefined;
 
     if (file && file.size > 0) {
-      // Delete old image from Cloudinary if exists
-      if (currentUser?.image) {
-        // Extract public_id from URL
-        const matches = currentUser.image.match(/\/profile_images\/([^\.]+)\./);
-        if (matches && matches[1]) {
-          const publicId = `profile_images/${matches[1]}`;
-          await cloudinary.uploader.destroy(publicId);
-        }
-      }
-
-      // Upload new image
+      // Upload new image first
       const buffer = Buffer.from(await file.arrayBuffer());
       const uploaded: any = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -89,6 +79,19 @@ export async function POST(req: Request) {
       where: { id: userId },
       data: { name, ...(imageUrl && { image: imageUrl }) },
     });
+
+    // Delete the replaced avatar only after the new URL is stored. Doing it
+    // before the upload/save risked losing the old image if anything failed.
+    if (imageUrl && currentUser?.image && currentUser.image !== imageUrl) {
+      const matches = currentUser.image.match(/\/profile_images\/([^\.]+)\./);
+      if (matches && matches[1]) {
+        try {
+          await cloudinary.uploader.destroy(`profile_images/${matches[1]}`);
+        } catch (err) {
+          console.error("Failed to delete old profile image:", err);
+        }
+      }
+    }
 
     // Update or create UserPlusInfo
     const existingPlusInfo = await prisma.userPlusInfo.findUnique({ where: { userId } });

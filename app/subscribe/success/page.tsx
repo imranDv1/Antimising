@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,77 +15,135 @@ import {
 } from "@/components/ui/dialog";
 import { invalidatePlanCache } from "@/context/planCacheStore";
 
-type Status = "processing" | "success" | "signin" | "error";
+type Status = "processing" | "pending" | "success" | "signin" | "error";
+
+// 603 = Sifalo is still waiting for the customer to approve on their phone.
+// Verify is polled until it answers 601, so a wallet payment that clears a
+// minute later still activates Pro without another webhook.
+const POLL_INTERVAL_MS = 10_000;
+const MAX_POLL_MS = 2 * 60_000;
 
 function SuccessPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<Status>("processing");
   const [message, setMessage] = useState("");
+  const [attempt, setAttempt] = useState(0);
+
+  const sid = searchParams.get("sid") ?? undefined;
+  const orderId = searchParams.get("order_id") ?? undefined;
 
   useEffect(() => {
-    const sid = searchParams.get("sid");
-    const orderId = searchParams.get("order_id");
-
-    // order_id is deliberately ignored — the authenticated session determines
-    // the account. Only the verified sid is sent to the server.
-    void orderId;
-
-    let cancelled = false;
-
-    if (!sid) {
+    // order_id is a documented fallback when the return URL carries no sid.
+    if (!sid && !orderId) {
       setStatus("error");
       setMessage("No payment reference was provided.");
       return;
     }
 
-    const saveSubscription = async () => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+
+    const checkPayment = async () => {
+      if (cancelled) return;
+
       try {
         const res = await fetch("/api/subscribe/success", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sid }),
+          body: JSON.stringify({ sid, order_id: orderId }),
         });
 
+        if (cancelled) return;
+
         if (res.status === 401) {
-          if (!cancelled) setStatus("signin");
+          setStatus("signin");
           return;
         }
 
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
         if (cancelled) return;
 
-        if (data.success) {
+        if (data?.success) {
           // The user may have been on the Free plan cache while paying;
           // drop it so the sidebar card reflects Pro immediately.
           invalidatePlanCache();
           setStatus("success");
-        } else {
-          setStatus("error");
-          setMessage(data.message || "Failed to save your subscription.");
+          return;
         }
+
+        if (res.status === 202 || data?.pending) {
+          setStatus("pending");
+          setMessage(data?.message || "");
+          if (Date.now() - startedAt < MAX_POLL_MS) {
+            timer = setTimeout(checkPayment, POLL_INTERVAL_MS);
+          }
+          return;
+        }
+
+        setStatus("error");
+        setMessage(data?.message || "Failed to save your subscription.");
       } catch (err) {
+        if (cancelled) return;
         console.error("Subscription error:", err);
-        if (!cancelled) {
-          setStatus("error");
-          setMessage("Network error, please try again.");
-        }
+        setStatus("error");
+        setMessage("Network error, please try again.");
       }
     };
 
-    saveSubscription();
+    checkPayment();
+
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
-  }, [searchParams, router]);
+  }, [sid, orderId, attempt]);
 
   return (
     <div className="flex min-h-screen items-center justify-center text-center">
       {status === "processing" ? (
-        <p>Processing your subscription...</p>
+        <p className="flex items-center gap-2">
+          <Loader2 className="size-4 animate-spin" />
+          Processing your subscription...
+        </p>
       ) : (
         <Dialog open onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-md" showCloseButton={false}>
+            {status === "pending" && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Payment pending</DialogTitle>
+                  <DialogDescription>
+                    Sifalo has received the request but the payment is not
+                    confirmed yet. If you paid with eDahab, Waafi or Premier
+                    Wallet, approve the request on your phone. This page checks
+                    again automatically.
+                  </DialogDescription>
+                </DialogHeader>
+                {message ? (
+                  <p className="text-sm text-muted-foreground">{message}</p>
+                ) : null}
+                <DialogFooter className="sm:justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/dashboard")}
+                  >
+                    Go to dashboard
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMessage("");
+                      setStatus("processing");
+                      setAttempt((value) => value + 1);
+                    }}
+                  >
+                    Check again
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+
             {status === "success" && (
               <>
                 <DialogHeader>

@@ -130,7 +130,7 @@ export default function PricingClient({
 
             <CardHeader>
               <CardTitle className="font-medium">Pro</CardTitle>
-              <span className="my-3 block text-2xl font-semibold">$9 / mo</span>
+              <span className="my-3 block text-2xl font-semibold">$4.99/ mo</span>
               <CardDescription className="text-sm">
                 For power users
               </CardDescription>
