@@ -28,6 +28,7 @@ import {
 import { useNotificationStore } from "@/context/profileUpdateNotification";
 import { useSharedStore } from "@/context/sharedStore";
 import { authClient } from "@/lib/auth-client";
+import { allowLandingVisit } from "@/lib/landing";
 import {
   Boxes,
   FolderLock,
@@ -227,7 +228,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link href="/" className="flex item-start justify-start">
+              <Link
+                href="/"
+                prefetch={false}
+                onClick={allowLandingVisit}
+                className="flex item-start justify-start"
+              >
                 <Logo className="h-5 w-5" />
                 <span className="text-xl font-semibold font-sans ">Rin<span className="text-primary">sign</span></span>
               </Link>

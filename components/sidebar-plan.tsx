@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
 
@@ -11,45 +11,25 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
-
-type PlanInfo = {
-  isPro: boolean;
-  endsOn?: string | null;
-};
+import { loadPlan, usePlanCacheStore } from "@/context/planCacheStore";
 
 // Shows the caller's current subscription (Free / Pro + expiry) in the
 // sidebar's settings area. Display-only — authorization never relies on this.
 export function SidebarPlan() {
   const { data: session } = authClient.useSession();
-  const [plan, setPlan] = useState<PlanInfo | null>(null);
+  const userId = session?.user.id;
+
+  // Read straight from the shared cache so reopening the sidebar paints the
+  // card immediately instead of showing a loading gap and refetching.
+  const plan = usePlanCacheStore((state) =>
+    userId && state.userId === userId ? state.plan : null
+  );
 
   useEffect(() => {
-    if (!session?.user.id) return;
-    let active = true;
-
-    const fetchPlan = async () => {
-      try {
-        const res = await fetch("/api/getSubs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: session.user.id }),
-          cache: "no-cache",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (active) {
-          setPlan({ isPro: !!data.isPro, endsOn: data.endsOn ?? null });
-        }
-      } catch (err) {
-        console.error("Failed to fetch subscription status", err);
-      }
-    };
-
-    fetchPlan();
-    return () => {
-      active = false;
-    };
-  }, [session?.user.id]);
+    if (!userId) return;
+    // Cache-aware: resolves instantly while fresh, fetches once when stale.
+    loadPlan(userId);
+  }, [userId]);
 
   if (!plan) return null;
 

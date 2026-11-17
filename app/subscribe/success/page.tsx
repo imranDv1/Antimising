@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { invalidatePlanCache } from "@/context/planCacheStore";
 
 type Status = "processing" | "success" | "signin" | "error";
 
@@ -54,6 +55,9 @@ function SuccessPageContent() {
         if (cancelled) return;
 
         if (data.success) {
+          // The user may have been on the Free plan cache while paying;
+          // drop it so the sidebar card reflects Pro immediately.
+          invalidatePlanCache();
           setStatus("success");
         } else {
           setStatus("error");

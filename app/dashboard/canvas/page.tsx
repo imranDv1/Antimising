@@ -742,46 +742,11 @@ useEffect(() => {
               </Button>
 
               {renameOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={cancelRename}
-                    aria-hidden="true"
-                  />
-                  <div className="absolute right-0 top-full z-50 mt-2 w-[min(calc(100vw-2rem),20rem)] rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg">
-                    <Input
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          commitRename();
-                        } else if (e.key === "Escape") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          cancelRename();
-                        }
-                      }}
-                      placeholder="Board name"
-                      autoFocus
-                    />
-                    <div className="mt-2 flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={cancelRename}
-                      >
-                        <X className="size-4" />
-                        Cancel
-                      </Button>
-                      <Button size="sm" onClick={commitRename}>
-                        <Check className="size-4" />
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                </>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={cancelRename}
+                  aria-hidden="true"
+                />
               )}
             </div>
           )
@@ -835,6 +800,40 @@ useEffect(() => {
             <Ban className="size-4" />
             {!isMobile && "Reject"}
           </Button>
+        )}
+
+        {/* Mobile rename popover: anchored to the controls row (not the icon
+            button) and centred so it never overflows the left edge. */}
+        {isMobile && canManage && renameOpen && (
+          <div className="absolute left-1/2 top-full z-50 mt-2 w-[min(calc(100vw-2rem),20rem)] -translate-x-1/2 rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg">
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  commitRename();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  cancelRename();
+                }
+              }}
+              placeholder="Board name"
+              autoFocus
+            />
+            <div className="mt-2 flex items-center justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={cancelRename}>
+                <X className="size-4" />
+                Cancel
+              </Button>
+              <Button size="sm" onClick={commitRename}>
+                <Check className="size-4" />
+                Save
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 

@@ -39,7 +39,7 @@ export default function SignUpPage({ siteKey }: { siteKey?: string }) {
     },
   });
 
-  // test
+  const router = useRouter();
 
   const [Loading, setLoading] = useState(false);
   const [googlePending, startGoogleTransiton] = useTransition();
@@ -63,6 +63,7 @@ export default function SignUpPage({ siteKey }: { siteKey?: string }) {
       const result = await SignUp(values, captchaToken || undefined);
       if (result.success) {
         toast.success("Sign up successful");
+        router.push("/dashboard");
       } else {
         toast.error(result.error?.message || "Something went wrong");
         resetCaptcha();
@@ -79,7 +80,7 @@ export default function SignUpPage({ siteKey }: { siteKey?: string }) {
     startGoogleTransiton(async () => {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/dashboard",
         fetchOptions: {
           onSuccess: () => {
             toast.success("You Wilbe redirect....");

@@ -66,7 +66,7 @@ export default function LoginPage({ siteKey }: { siteKey?: string }) {
             : undefined,
           onSuccess: () => {
             toast.success("Sign in successful");
-            router.push("/");
+            router.push("/dashboard");
           },
           onError: (ctx) => {
             toast.error(ctx.error.message || "Something went wrong");
@@ -87,7 +87,7 @@ export default function LoginPage({ siteKey }: { siteKey?: string }) {
     startGoogleTransiton(async () => {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/dashboard",
         fetchOptions: {
           onSuccess: () => {
             toast.success("You Wilbe redirect....");
