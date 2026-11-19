@@ -387,3 +387,76 @@
     mix-blend-mode: normal;}
 
 
+
+
+
+    /* old primary color dont remove this comment   --primary: oklch(0.7924 0.1795 158.9982); */
+
+
+/* ============================================================================
+   TEMPORARY EVENT THEME — primary becomes a blue → magenta → orange gradient
+   ----------------------------------------------------------------------------
+   Everything for the event lives in the two blocks below.
+
+   TO REVERT TO THE ORIGINAL GREEN PRIMARY:
+   comment out / delete this whole section (down to the "END EVENT THEME"
+   marker). The original --primary / --primary-foreground values at the top of
+   this file take over again — no component files need to be touched.
+   ============================================================================ */
+:root,
+.dark {
+  /* Gradient stops — tweak these three to change the event palette */
+  --primary-gradient-from: #0E3EE7;
+  --primary-gradient-via: #FC28C6;
+  --primary-gradient-to: #FC8D5D;
+  --primary-gradient-angle: 50deg;
+
+  /* The gradient itself (used by every plain `bg-primary` element) */
+  --primary-gradient: linear-gradient(
+    var(--primary-gradient-angle),
+    var(--primary-gradient-from) 0%,
+    var(--primary-gradient-via) 50%,
+    var(--primary-gradient-to) 100%
+  );
+
+  /* Solid fallback for places where a gradient cannot be used:
+     text-primary, border-primary, ring-primary, charts and tints
+     such as bg-primary/10 or bg-primary/5. */
+  --primary: #FC8D5D;
+  --primary-foreground: #ffffff;
+
+  /* Keep the rich-text editor accent in sync with the event theme */
+  --tt-brand-color-50: color-mix(in srgb, var(--primary-gradient-from) 6%, #fff);
+  --tt-brand-color-100: color-mix(in srgb, var(--primary-gradient-from) 12%, #fff);
+  --tt-brand-color-200: color-mix(in srgb, var(--primary-gradient-from) 24%, #fff);
+  --tt-brand-color-300: color-mix(in srgb, var(--primary-gradient-from) 40%, #fff);
+  --tt-brand-color-400: color-mix(in srgb, var(--primary-gradient-from) 62%, #fff);
+  --tt-brand-color-500: var(--primary-gradient-from);
+  --tt-brand-color-600: color-mix(in srgb, var(--primary-gradient-from) 85%, #000);
+  --tt-brand-color-700: color-mix(in srgb, var(--primary-gradient-from) 72%, #000);
+  --tt-brand-color-800: color-mix(in srgb, var(--primary-gradient-from) 58%, #000);
+  --tt-brand-color-900: color-mix(in srgb, var(--primary-gradient-from) 44%, #000);
+  --tt-brand-color-950: color-mix(in srgb, var(--primary-gradient-from) 32%, #000);
+}
+
+/* Paint the event gradient on every element using the plain `bg-primary`
+   class (buttons, badges, active nav items, …).
+   Tinted variants like `bg-primary/10` are a different class token, so they
+   are skipped and stay as soft solid tints. */
+[class~="bg-primary"] {
+  background-image: var(--primary-gradient, none);
+}
+
+/* Optional helpers for new elements that should use the event gradient. */
+.bg-primary-gradient {
+  background-image: var(--primary-gradient, none);
+}
+
+.text-primary-gradient {
+  background-image: var(--primary-gradient, none);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* ============================ END EVENT THEME ============================ */

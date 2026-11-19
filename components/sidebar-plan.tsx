@@ -52,7 +52,7 @@ export function SidebarPlan() {
                 <span className="text-sm font-medium">
                   {pro ? "Pro plan" : "Free plan"}
                 </span>
-                <Badge variant={pro ? "default" : "secondary"}>
+                <Badge className="border-0" variant={pro ? "default" : "secondary"}>
                   {pro ? "Active" : "Free"}
                 </Badge>
               </span>

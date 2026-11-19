@@ -70,8 +70,8 @@ function HeroAppPreview() {
           />
           <BorderBeam
             size={330}
-            colorFrom="#5FE9C0"
-            colorTo="#14DD90"
+            colorFrom="#FC28C6"
+            colorTo="#FC8D5D"
             borderWidth={3}
           />
         </div>
